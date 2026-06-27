@@ -25,17 +25,18 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  // Refresh session — required for Server Component auth to work.
   const { data: { user } } = await supabase.auth.getUser()
-
   const { pathname } = request.nextUrl
 
   // Public routes — no auth required
-  const publicPaths = ['/login', '/forgot-password', '/reset-password']
+  const publicPaths = ['/login', '/unauthorized', '/forgot-password', '/reset-password']
   if (publicPaths.some(p => pathname.startsWith(p))) {
-    // Redirect already-authenticated users away from login
-    if (user && pathname === '/login') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (user && pathname.startsWith('/login')) {
+      // Already authenticated — send to role-appropriate dashboard
+      const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      const role = (data as { role: string } | null)?.role
+      const dest = role === 'head_master' ? '/head-master/dashboard' : '/association/dashboard'
+      return NextResponse.redirect(new URL(dest, request.url))
     }
     return supabaseResponse
   }
@@ -47,18 +48,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // /admin/* routes require head_master role
-  if (pathname.startsWith('/admin')) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
+  // Role-restricted route guards — single DB query covers both cases
+  const needsRoleCheck = pathname.startsWith('/head-master') || pathname.startsWith('/association')
+  if (needsRoleCheck) {
+    const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     const profile = data as { role: string } | null
 
-    if (!profile || profile.role !== 'head_master') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (pathname.startsWith('/head-master') && profile?.role !== 'head_master') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+    if (pathname.startsWith('/association') && profile?.role !== 'association_rep') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
   }
 

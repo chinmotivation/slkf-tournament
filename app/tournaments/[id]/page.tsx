@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import StatusBadge from '@/components/tournaments/StatusBadge'
 import PublishButton from '@/components/tournaments/PublishButton'
+import StartApplicationButton from '@/components/applications/StartApplicationButton'
 import type { Tournament } from '@/types/database'
 
 interface Props {
@@ -115,7 +116,7 @@ export default async function TournamentDetailPage({ params }: Props) {
                 Registration closes {formatDate(t.registration_deadline)}
               </p>
             </div>
-            <span className="text-sm text-gray-400 italic">Application system coming in Step 08</span>
+            <StartApplicationButton tournamentId={t.id} />
           </div>
         )}
 

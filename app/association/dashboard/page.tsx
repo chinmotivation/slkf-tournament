@@ -54,16 +54,19 @@ export default async function AssociationDashboard() {
             <p className="text-sm text-gray-500">View open tournaments and apply.</p>
           </Link>
 
-          <div className="bg-white rounded-xl border border-gray-100 p-6 opacity-60 cursor-not-allowed">
-            <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-50 rounded-lg mb-4">
-              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <Link
+            href="/association/applications"
+            className="group bg-white rounded-xl border border-gray-100 p-6 hover:border-blue-200 hover:shadow-sm transition-all"
+          >
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg mb-4 group-hover:bg-blue-100 transition-colors">
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h2 className="text-base font-semibold text-gray-700 mb-1">My Applications</h2>
-            <p className="text-sm text-gray-400">Manage applications and payments. Coming in Step 08.</p>
-          </div>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">My Applications</h2>
+            <p className="text-sm text-gray-500">Create and manage tournament applications.</p>
+          </Link>
 
           <div className="bg-white rounded-xl border border-gray-100 p-6 opacity-60 cursor-not-allowed">
             <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-50 rounded-lg mb-4">

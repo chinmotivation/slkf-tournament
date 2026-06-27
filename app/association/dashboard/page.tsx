@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import LogoutButton from '@/components/auth/LogoutButton'
 
-export const metadata: Metadata = {
-  title: 'Dashboard — SLKF Association',
-}
+export const metadata: Metadata = { title: 'Dashboard — SLKF Association' }
 
 export default async function AssociationDashboard() {
   const supabase = await createClient()
@@ -40,17 +39,42 @@ export default async function AssociationDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-10">
-        <div className="bg-white rounded-xl border border-gray-100 p-10 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-100 rounded-full mb-4">
-            <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link
+            href="/association/tournaments"
+            className="group bg-white rounded-xl border border-gray-100 p-6 hover:border-blue-200 hover:shadow-sm transition-all"
+          >
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg mb-4 group-hover:bg-blue-100 transition-colors">
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Tournaments</h2>
+            <p className="text-sm text-gray-500">View open tournaments and apply.</p>
+          </Link>
+
+          <div className="bg-white rounded-xl border border-gray-100 p-6 opacity-60 cursor-not-allowed">
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-50 rounded-lg mb-4">
+              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-gray-700 mb-1">My Applications</h2>
+            <p className="text-sm text-gray-400">Manage applications and payments. Coming in Step 08.</p>
           </div>
-          <h2 className="text-base font-semibold text-gray-700 mb-1">Dashboard coming in Step 07</h2>
-          <p className="text-sm text-gray-400">
-            Athlete registration, team kata entry, and payment submission will be built here.
-          </p>
+
+          <div className="bg-white rounded-xl border border-gray-100 p-6 opacity-60 cursor-not-allowed">
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-50 rounded-lg mb-4">
+              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-gray-700 mb-1">Athletes</h2>
+            <p className="text-sm text-gray-400">Manage your association's athletes. Coming in Step 09.</p>
+          </div>
         </div>
       </main>
     </div>

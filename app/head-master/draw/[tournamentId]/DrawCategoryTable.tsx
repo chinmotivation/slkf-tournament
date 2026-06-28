@@ -174,14 +174,21 @@ export default function DrawCategoryTable({ brackets, tournamentId }: Props) {
                           <div className="flex items-center justify-end gap-2">
                             {/* PREVIEW: show Generate / Regenerate */}
                             {b.status === 'PREVIEW' && (
-                              <button
-                                onClick={() => handleGenerate(b.id)}
-                                disabled={busy || b.participant_count < 2}
-                                title={b.participant_count < 2 ? 'Need at least 2 athletes' : undefined}
-                                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                              >
-                                {busy ? 'Generating…' : b.generated_at ? 'Regenerate' : 'Generate Draw'}
-                              </button>
+                              <div className="flex flex-col items-end gap-1">
+                                <button
+                                  onClick={() => handleGenerate(b.id)}
+                                  disabled={busy || b.participant_count < 2}
+                                  title={b.participant_count < 2 ? `Only ${b.participant_count} participant — need at least 2 to generate a draw` : undefined}
+                                  className="text-xs font-medium px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  {busy ? 'Generating…' : b.generated_at ? 'Regenerate' : 'Generate Draw'}
+                                </button>
+                                {b.participant_count < 2 && (
+                                  <span className="text-[10px] text-amber-600">
+                                    {b.participant_count === 0 ? 'No participants' : '1 participant — need 2+'}
+                                  </span>
+                                )}
+                              </div>
                             )}
 
                             {/* PREVIEW + already generated: show Lock */}

@@ -2,7 +2,8 @@
 // Manually maintained — update when the SQL schema changes.
 // For full Supabase CLI generation: npx supabase gen types typescript --linked
 
-export type UserRole = 'head_master' | 'association_rep' | 'super_admin'
+export type UserRole = 'head_master' | 'association_rep' | 'super_admin' | 'student'
+export type StudentApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'ARCHIVED'
 export type ApplicationStatus = 'DRAFT' | 'SUBMITTED' | 'PENDING_VERIFICATION' | 'APPROVED' | 'REJECTED'
 export type PaymentStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -10,6 +11,9 @@ export type VerificationAction = 'APPROVED' | 'REJECTED'
 export type GenderType = 'MALE' | 'FEMALE'
 export type EventType = 'KATA' | 'KUMITE' | 'BOTH'
 export type AllowedMimeType = 'image/jpeg' | 'image/png' | 'application/pdf'
+export type DrawStatus = 'PREVIEW' | 'LOCKED' | 'IN_PROGRESS' | 'COMPLETE'
+export type SeedingMode = 'RANDOM' | 'ASSOCIATION_SEPARATION' | 'MANUAL'
+export type MatchStatus = 'PENDING' | 'BYE_WIN' | 'IN_PROGRESS' | 'COMPLETE'
 
 // postgrest-js GenericTable requires a Relationships field on every table.
 // Use an empty array for tables with no foreign-key join helpers needed.
@@ -88,6 +92,31 @@ export interface Database {
         Insert: Omit<SystemAuditLog, 'id' | 'created_at'>
         Update: never
       } & NoRelationships
+      student_profiles: {
+        Row: StudentProfile
+        Insert: Omit<StudentProfile, 'created_at' | 'updated_at'>
+        Update: Partial<Omit<StudentProfile, 'id' | 'created_at'>>
+      } & NoRelationships
+      student_applications: {
+        Row: StudentApplication
+        Insert: Omit<StudentApplication, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<StudentApplication, 'id' | 'created_at'>>
+      } & NoRelationships
+      draw_brackets: {
+        Row: DrawBracket
+        Insert: Omit<DrawBracket, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<DrawBracket, 'id' | 'created_at'>>
+      } & NoRelationships
+      draw_participants: {
+        Row: DrawParticipant
+        Insert: Omit<DrawParticipant, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<DrawParticipant, 'id' | 'created_at'>>
+      } & NoRelationships
+      bracket_matches: {
+        Row: BracketMatch
+        Insert: Omit<BracketMatch, 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Omit<BracketMatch, 'id' | 'created_at'>>
+      } & NoRelationships
     }
     Views: Record<string, never>
     Functions: {
@@ -103,6 +132,9 @@ export interface Database {
       gender_type: GenderType
       event_type: EventType
       allowed_mime_type: AllowedMimeType
+      draw_status: DrawStatus
+      seeding_mode: SeedingMode
+      match_status: MatchStatus
     }
     CompositeTypes: Record<string, never>
   }
@@ -164,6 +196,12 @@ export interface Tournament {
   max_u14_teams_per_gender: number
   max_individual_athletes_per_application: number
   notes: string | null
+  organizer_district: string | null
+  organizer_province: string | null
+  organizer_association_name: string | null
+  organizer_reg_no: string | null
+  organizer_instructor_name: string | null
+  organizer_whatsapp: string | null
   created_at: string
   updated_at: string
   created_by: string | null
@@ -324,7 +362,112 @@ export interface SystemAuditLog {
   created_at: string
 }
 
+export interface StudentProfile {
+  id: string
+  full_name: string
+  date_of_birth: string
+  gender: GenderType
+  belt_grade: string
+  phone: string
+  created_at: string
+  updated_at: string
+}
+
+export interface StudentApplication {
+  id: string
+  user_id: string
+  tournament_id: string
+  full_name: string
+  date_of_birth: string
+  gender: GenderType
+  belt_grade: string
+  age_category_code: string
+  kata_entry: boolean
+  kata_level: string | null
+  kumite_entry: boolean
+  kumite_weight_class: string | null
+  payment_receipt_url: string | null
+  total_amount_lkr: number
+  status: StudentApplicationStatus
+  student_number: string | null
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_notes: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ─── Draw engine row types ────────────────────────────────────────────────────
+
+export interface DrawBracket {
+  id: string
+  tournament_id: string
+  age_group_code: string
+  gender: GenderType
+  event: 'KATA' | 'KUMITE'
+  kata_level: string | null          // 'LEVEL_1' | 'LEVEL_2' | 'LEVEL_3' — kata only
+  weight_class_label: string | null  // e.g. '-35kg' — kumite only
+  seeding_mode: SeedingMode
+  participant_count: number
+  bracket_size: number
+  bye_count: number
+  status: DrawStatus
+  generated_at: string | null
+  locked_at: string | null
+  locked_by: string | null
+  created_at: string
+  updated_at: string
+  created_by: string | null
+  updated_by: string | null
+}
+
+export interface DrawParticipant {
+  id: string
+  bracket_id: string
+  individual_entry_id: string | null
+  student_application_id: string | null
+  full_name: string | null
+  association_id: string | null
+  association_name: string | null
+  seed_position: number | null
+  is_bye: boolean
+  is_eligible: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface BracketMatch {
+  id: string
+  bracket_id: string
+  round_number: number
+  round_label: string
+  position: number
+  match_number: number | null
+  participant1_id: string | null
+  participant2_id: string | null
+  winner_id: string | null
+  score_p1: number | null
+  score_p2: number | null
+  next_match_id: string | null
+  next_match_slot: 1 | 2 | null
+  status: MatchStatus
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ─── Composite query result types ─────────────────────────────────────────────
+
+export interface DrawBracketWithDetails extends DrawBracket {
+  draw_participants: DrawParticipant[]
+  bracket_matches: BracketMatch[]
+}
+
+export interface BracketMatchWithParticipants extends BracketMatch {
+  participant1: DrawParticipant | null
+  participant2: DrawParticipant | null
+  winner: DrawParticipant | null
+}
 
 export interface TeamKataEntryWithMembers extends TeamKataEntry {
   team_kata_members: TeamKataMember[]

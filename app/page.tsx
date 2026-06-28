@@ -10,5 +10,11 @@ export default async function RootPage() {
   const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   const role = (data as { role: string } | null)?.role
 
-  redirect(role === 'head_master' ? '/head-master/dashboard' : '/association/dashboard')
+  const dest =
+    role === 'head_master'    ? '/head-master/dashboard'
+    : role === 'super_admin'  ? '/admin/dashboard'
+    : role === 'student'      ? '/student/dashboard'
+    : '/association/dashboard'
+
+  redirect(dest)
 }

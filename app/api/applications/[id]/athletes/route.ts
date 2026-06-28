@@ -92,7 +92,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       gender: athlete.gender,
       age_category_code: computeAgeCategory(athlete.date_of_birth, tournament.age_eligibility_cutoff_date),
       event: 'KATA' as const,
-      weight_kg: 0,
+      weight_kg: 1,
       entry_fee_lkr: tournament.fee_individual_one_event_lkr,
       row_order: index + 1,
       created_by: auth.userId,

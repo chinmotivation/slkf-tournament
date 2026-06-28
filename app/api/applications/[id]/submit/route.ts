@@ -45,7 +45,10 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     .select('id, status')
     .eq('id', application.tournament_id)
     .single()
-  if (tournResult.error || !tournResult.data) return serverError()
+  if (tournResult.error || !tournResult.data) {
+    console.error('[submit] tournament error:', tournResult.error)
+    return serverError()
+  }
   const tournament = tournResult.data as Pick<Tournament, 'id' | 'status'>
   if (tournament.status !== 'OPEN') {
     return conflict('This tournament is no longer accepting applications.', 'TOURNAMENT_CLOSED')
@@ -69,6 +72,9 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     .select()
     .single()
 
-  if (updateResult.error) return serverError()
+  if (updateResult.error) {
+    console.error('[submit] update error:', updateResult.error)
+    return serverError()
+  }
   return ok(updateResult.data as Application)
 }

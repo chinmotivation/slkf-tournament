@@ -73,6 +73,12 @@ export async function POST(request: NextRequest) {
       max_u14_teams_per_gender: d.max_u14_teams_per_gender,
       max_individual_athletes_per_application: d.max_individual_athletes_per_application,
       notes: nullStr(d.notes),
+      organizer_district:         nullStr(d.organizer_district),
+      organizer_province:         nullStr(d.organizer_province),
+      organizer_association_name: nullStr(d.organizer_association_name),
+      organizer_reg_no:           nullStr(d.organizer_reg_no),
+      organizer_instructor_name:  nullStr(d.organizer_instructor_name),
+      organizer_whatsapp:         nullStr(d.organizer_whatsapp),
       created_by: auth.userId,
       updated_by: auth.userId,
     })

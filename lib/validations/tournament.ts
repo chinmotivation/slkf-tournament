@@ -35,6 +35,13 @@ export const tournamentSchema = z.object({
   max_u14_teams_per_gender: z.number().int().min(1).max(10),
   max_individual_athletes_per_application: z.number().int().min(1).max(200),
   notes: z.string().max(2000).optional().or(z.literal('')),
+  // Organizer details — printed in the Excel export "Payment & Other Details" panel
+  organizer_district:         z.string().max(100).optional().or(z.literal('')),
+  organizer_province:         z.string().max(100).optional().or(z.literal('')),
+  organizer_association_name: z.string().max(200).optional().or(z.literal('')),
+  organizer_reg_no:           z.string().max(100).optional().or(z.literal('')),
+  organizer_instructor_name:  z.string().max(200).optional().or(z.literal('')),
+  organizer_whatsapp:         z.string().max(30).optional().or(z.literal('')),
 })
 
 export type TournamentInput = z.infer<typeof tournamentSchema>

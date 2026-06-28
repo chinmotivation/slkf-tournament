@@ -14,7 +14,11 @@ export default async function LoginPage() {
   if (user) {
     const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     const role = (data as { role: string } | null)?.role
-    redirect(role === 'head_master' ? '/head-master/dashboard' : '/association/dashboard')
+    redirect(
+      role === 'head_master' ? '/head-master/dashboard'
+      : role === 'student'   ? '/student/dashboard'
+      : '/association/dashboard'
+    )
   }
 
   return (
@@ -34,7 +38,12 @@ export default async function LoginPage() {
           <LoginForm />
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
+        <p className="text-center text-sm text-gray-500 mt-5">
+          New athlete?{' '}
+          <a href="/register" className="text-red-600 hover:underline font-medium">Create an account</a>
+        </p>
+
+        <p className="text-center text-xs text-gray-400 mt-4">
           © {new Date().getFullYear()} Sri Lanka Karatedo Federation. All rights reserved.
         </p>
       </div>

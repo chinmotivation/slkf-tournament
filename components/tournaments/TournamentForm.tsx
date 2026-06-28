@@ -79,9 +79,27 @@ export default function TournamentForm({ initialData, tournamentId }: Props) {
           max_u14_teams_per_gender: initialData.max_u14_teams_per_gender,
           max_individual_athletes_per_application: initialData.max_individual_athletes_per_application,
           notes: initialData.notes ?? '',
+          organizer_district:         initialData.organizer_district         ?? '',
+          organizer_province:         initialData.organizer_province         ?? '',
+          organizer_association_name: initialData.organizer_association_name ?? '',
+          organizer_reg_no:           initialData.organizer_reg_no           ?? '',
+          organizer_instructor_name:  initialData.organizer_instructor_name  ?? '',
+          organizer_whatsapp:         initialData.organizer_whatsapp         ?? '',
         }
       : {
+          name: 'Open Karate Competition – Under 14, Cadet, Junior, Under 21 & Senior – 2026',
+          code: 'OKC-2026',
           year: new Date().getFullYear(),
+          venue_u14:          'Sugathadasa Indoor Stadium in Colombo (Western Province.)',
+          venue_cadet_junior: 'Town Hall Indoor Stadium, Ratnapura. (Sabaragamuwa Province.)',
+          venue_u21_senior:   'Kotawila Sports Complex in Kotawila (Southern Province.)',
+          bank_account_name:   'Sri Lanka Karatedo Federation',
+          bank_account_number: '046-1-001-6-0387279',
+          bank_name:           "People's Bank",
+          bank_branch:         'First City',
+          fee_individual_one_event_lkr:   2000,
+          fee_individual_both_events_lkr: 3000,
+          fee_team_kata_lkr:              3000,
           max_team_members: 4,
           max_u14_teams_per_gender: 2,
           max_individual_athletes_per_application: 100,
@@ -309,6 +327,33 @@ export default function TournamentForm({ initialData, tournamentId }: Props) {
             {...register('notes')}
           />
         </Field>
+      </section>
+
+      {/* Organizer Details */}
+      <section>
+        <h2 className={sectionHeading}>Organizer Details <span className="text-gray-400 font-normal normal-case">(printed in Excel export)</span></h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Field label="District" error={errors.organizer_district?.message}>
+            <input type="text" placeholder="e.g. Colombo" className={inputCls} {...register('organizer_district')} />
+          </Field>
+          <Field label="Province" error={errors.organizer_province?.message}>
+            <input type="text" placeholder="e.g. Western" className={inputCls} {...register('organizer_province')} />
+          </Field>
+          <div className="md:col-span-2">
+            <Field label="Association Name" error={errors.organizer_association_name?.message}>
+              <input type="text" placeholder="e.g. Western Province Karate Association" className={inputCls} {...register('organizer_association_name')} />
+            </Field>
+          </div>
+          <Field label="Association Reg. No" error={errors.organizer_reg_no?.message}>
+            <input type="text" placeholder="e.g. SLKF/AFF/WP/001" className={inputCls} {...register('organizer_reg_no')} />
+          </Field>
+          <Field label="Instructor Name" error={errors.organizer_instructor_name?.message}>
+            <input type="text" placeholder="e.g. Test Sensei" className={inputCls} {...register('organizer_instructor_name')} />
+          </Field>
+          <Field label="WhatsApp No" error={errors.organizer_whatsapp?.message}>
+            <input type="text" placeholder="e.g. 0771234567" className={inputCls} {...register('organizer_whatsapp')} />
+          </Field>
+        </div>
       </section>
 
       {/* Submit */}

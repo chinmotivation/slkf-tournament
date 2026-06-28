@@ -49,7 +49,10 @@ export async function POST(request: NextRequest) {
     }
 
     const redirectTo =
-      p.role === 'head_master' ? '/head-master/dashboard' : '/association/dashboard'
+      p.role === 'head_master'  ? '/head-master/dashboard'
+      : p.role === 'student'    ? '/student/dashboard'
+      : p.role === 'super_admin' ? '/admin/dashboard'
+      : '/association/dashboard'
 
     return ok({ role: p.role, full_name: p.full_name, redirectTo })
   } catch {

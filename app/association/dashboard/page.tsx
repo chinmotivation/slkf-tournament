@@ -68,16 +68,19 @@ export default async function AssociationDashboard() {
             <p className="text-sm text-gray-500">Create and manage tournament applications.</p>
           </Link>
 
-          <div className="bg-white rounded-xl border border-gray-100 p-6 opacity-60 cursor-not-allowed">
-            <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-50 rounded-lg mb-4">
-              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <Link
+            href="/association/athletes"
+            className="group bg-white rounded-xl border border-gray-100 p-6 hover:border-blue-200 hover:shadow-sm transition-all"
+          >
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg mb-4 group-hover:bg-blue-100 transition-colors">
+              <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <h2 className="text-base font-semibold text-gray-700 mb-1">Athletes</h2>
-            <p className="text-sm text-gray-400">Manage your association's athletes. Coming in Step 09.</p>
-          </div>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Athletes</h2>
+            <p className="text-sm text-gray-500">Manage your association&apos;s athlete roster.</p>
+          </Link>
         </div>
       </main>
     </div>

@@ -60,6 +60,18 @@ export function requireAssociationRep() {
   return requireRole('association_rep')
 }
 
+export function requireStudent() {
+  return requireRole('student')
+}
+
+export function requireAdminOrRep(): Promise<AuthContext | NextResponse> {
+  return requireAuth().then(result => {
+    if (isNextResponse(result)) return result
+    if (result.role !== 'head_master' && result.role !== 'association_rep') return forbidden()
+    return result
+  })
+}
+
 export function isNextResponse(value: unknown): value is NextResponse {
   return value instanceof Response
 }

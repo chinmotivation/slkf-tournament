@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes — no auth required
-  const publicPaths = ['/login', '/unauthorized', '/forgot-password', '/reset-password']
+  const publicPaths = ['/login', '/register', '/unauthorized', '/forgot-password', '/reset-password', '/api/auth']
   if (publicPaths.some(p => pathname.startsWith(p))) {
     if (user && pathname.startsWith('/login')) {
       // Already authenticated — send to role-appropriate dashboard
@@ -49,7 +49,7 @@ export async function proxy(request: NextRequest) {
   }
 
   // Role-restricted route guards — single DB query covers both cases
-  const needsRoleCheck = pathname.startsWith('/head-master') || pathname.startsWith('/association')
+  const needsRoleCheck = pathname.startsWith('/head-master') || pathname.startsWith('/association') || pathname.startsWith('/student')
   if (needsRoleCheck) {
     const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     const profile = data as { role: string } | null
@@ -58,6 +58,9 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
     if (pathname.startsWith('/association') && profile?.role !== 'association_rep') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url))
+    }
+    if (pathname.startsWith('/student') && profile?.role !== 'student') {
       return NextResponse.redirect(new URL('/unauthorized', request.url))
     }
   }

@@ -5,6 +5,7 @@ import { redirect, notFound } from 'next/navigation'
 import AthleteMultiSelect from '@/components/applications/AthleteMultiSelect'
 import SubmitButton from '@/components/applications/SubmitButton'
 import ApplicationStatusBadge from '@/components/applications/ApplicationStatusBadge'
+import QrCodeDisplay from '@/components/check-in/QrCode'
 import type { Application, Athlete, IndividualEntry, Tournament } from '@/types/database'
 
 interface Props {
@@ -62,13 +63,14 @@ export default async function ApplicationDetailPage({ params }: Props) {
       .order('full_name'),
     db
       .from('individual_entries')
-      .select('athlete_id')
+      .select('athlete_id, id, full_name, event, check_in_token, checked_in_at')
       .eq('application_id', id)
       .is('deleted_at', null),
   ])
 
   const athletes = (athletesResult.data ?? []) as Athlete[]
-  const selectedAthleteIds = ((entriesResult.data ?? []) as { athlete_id: string | null }[])
+  const entries = (entriesResult.data ?? []) as (IndividualEntry & { check_in_token: string })[]
+  const selectedAthleteIds = entries
     .filter(e => e.athlete_id !== null)
     .map(e => e.athlete_id as string)
 
@@ -172,6 +174,32 @@ export default async function ApplicationDetailPage({ params }: Props) {
                 <p className="text-sm text-red-600">{application.rejection_reason}</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* QR codes — only shown for APPROVED applications */}
+        {application.status === 'APPROVED' && entries.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-100 p-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-1">Competition Day Check-in</h2>
+            <p className="text-xs text-gray-400 mb-5">
+              Each athlete must show their QR code to the official at the venue.
+            </p>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {entries.map(entry => (
+                <div key={entry.id} className="flex flex-col items-center gap-2 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                  <p className="text-sm font-semibold text-gray-900 text-center">{entry.full_name}</p>
+                  <p className="text-xs text-gray-400">{entry.event}</p>
+                  <QrCodeDisplay token={entry.check_in_token} size={130} />
+                  {entry.checked_in_at ? (
+                    <span className="text-xs text-emerald-600 font-medium">
+                      ✓ Checked in {new Date(entry.checked_in_at).toLocaleTimeString()}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">Awaiting check-in</span>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </main>

@@ -2,7 +2,7 @@
 // Manually maintained — update when the SQL schema changes.
 // For full Supabase CLI generation: npx supabase gen types typescript --linked
 
-export type UserRole = 'head_master' | 'association_rep' | 'super_admin' | 'student'
+export type UserRole = 'head_master' | 'association_rep' | 'super_admin' | 'student' | 'referee'
 export type StudentApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'ARCHIVED'
 export type ApplicationStatus = 'DRAFT' | 'SUBMITTED' | 'PENDING_VERIFICATION' | 'APPROVED' | 'REJECTED'
@@ -117,6 +117,11 @@ export interface Database {
         Insert: Omit<BracketMatch, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<BracketMatch, 'id' | 'created_at'>>
       } & NoRelationships
+      tournament_tatamis: {
+        Row: TournamentTatami
+        Insert: Omit<TournamentTatami, 'id' | 'created_at'>
+        Update: Partial<Omit<TournamentTatami, 'id' | 'created_at'>>
+      } & NoRelationships
     }
     Views: Record<string, never>
     Functions: {
@@ -168,6 +173,14 @@ export interface Association {
   updated_by: string | null
 }
 
+export type CompetitionRules  = 'WKF' | 'SLKF' | 'CUSTOM'
+export type DrawType          = 'SINGLE_ELIMINATION' | 'ROUND_ROBIN' | 'POOL_KNOCKOUT'
+export type SeedingMethodType = 'RANDOM' | 'ASSOCIATION_SEPARATION' | 'MANUAL'
+export type MedalRule         = 'ONE_BRONZE' | 'TWO_BRONZE'
+export type KataScoringMethod = 'TOTAL_SCORE' | 'DEDUCTION' | 'FLAG'
+export type KumiteScoringMethod = 'POINT_BASED' | 'FLAG'
+export type TieBreakRule      = 'SENSHU' | 'HANTEI' | 'OVERTIME'
+
 export interface Tournament {
   id: string
   name: string
@@ -177,6 +190,7 @@ export interface Tournament {
   registration_deadline: string
   age_eligibility_cutoff_date: string
   status: TournamentStatus
+  // Legacy split venue/date columns (kept for backwards compatibility)
   venue_u14: string | null
   venue_cadet_junior: string | null
   venue_u21_senior: string | null
@@ -185,6 +199,34 @@ export interface Tournament {
   date_cadet_junior: string | null
   date_u21_senior_start: string | null
   date_u21_senior_end: string | null
+  // Phase 0: unified venue & dates
+  venue: string | null
+  competition_start_date: string | null
+  competition_end_date: string | null
+  // Phase 0: competition rules
+  competition_rules: CompetitionRules
+  custom_rules_text: string | null
+  // Phase 0: event toggles
+  enable_individual_kata: boolean
+  enable_team_kata: boolean
+  enable_individual_kumite: boolean
+  enable_team_kumite: boolean
+  // Phase 0: registration window
+  registration_open_date: string | null
+  allow_late_registration: boolean
+  // Phase 0: entry limits
+  max_entries_per_category: number
+  max_team_kata_teams: number
+  // Phase 0: draw configuration
+  draw_type: DrawType
+  seeding_method: SeedingMethodType
+  // Phase 0: medal & match rules
+  medal_rule: MedalRule
+  match_duration_seconds: number
+  kata_scoring_method: KataScoringMethod
+  kumite_scoring_method: KumiteScoringMethod
+  tie_break_rule: TieBreakRule
+  // Payment
   bank_account_name: string
   bank_account_number: string
   bank_name: string
@@ -192,9 +234,19 @@ export interface Tournament {
   fee_individual_one_event_lkr: number
   fee_individual_both_events_lkr: number
   fee_team_kata_lkr: number
+  payment_deadline: string | null
+  payment_instructions: string | null
+  // Limits
   max_team_members: number
   max_u14_teams_per_gender: number
   max_individual_athletes_per_application: number
+  // Phase 0: public info
+  tournament_description: string | null
+  organizer_contact: string | null
+  rules_pdf_url: string | null
+  // Phase 0: publish tracking
+  published_at: string | null
+  // Internal notes & organizer
   notes: string | null
   organizer_district: string | null
   organizer_province: string | null
@@ -276,6 +328,9 @@ export interface IndividualEntry {
   entry_fee_lkr: number
   row_order: number
   deleted_at: string | null
+  check_in_token: string
+  checked_in_at: string | null
+  checked_in_by: string | null
   created_at: string
   updated_at: string
   created_by: string | null
@@ -393,6 +448,9 @@ export interface StudentApplication {
   reviewed_by: string | null
   reviewed_at: string | null
   review_notes: string | null
+  check_in_token: string
+  checked_in_at: string | null
+  checked_in_by: string | null
   created_at: string
   updated_at: string
 }
@@ -454,6 +512,15 @@ export interface BracketMatch {
   completed_at: string | null
   created_at: string
   updated_at: string
+}
+
+export interface TournamentTatami {
+  id: string
+  tournament_id: string
+  name: string
+  display_order: number
+  is_active: boolean
+  created_at: string
 }
 
 // ─── Composite query result types ─────────────────────────────────────────────

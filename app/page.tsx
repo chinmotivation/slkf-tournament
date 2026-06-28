@@ -14,6 +14,7 @@ export default async function RootPage() {
     role === 'head_master'    ? '/head-master/dashboard'
     : role === 'super_admin'  ? '/admin/dashboard'
     : role === 'student'      ? '/student/dashboard'
+    : role === 'referee'      ? '/referee/dashboard'
     : '/association/dashboard'
 
   redirect(dest)

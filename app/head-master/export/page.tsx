@@ -10,8 +10,15 @@ export default async function ExportPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles').select('full_name, role').eq('id', user.id).single()
+  const p = profile as { full_name: string; role: string } | null
+  if (p?.role !== 'head_master') redirect('/unauthorized')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
+  // RLS scopes this to the HM's own tournaments (owner_id = auth.uid())
   const tournamentsResult = await db
     .from('tournaments')
     .select('id, name, code, year, status')
@@ -20,11 +27,27 @@ export default async function ExportPage() {
   type TournRow = Pick<Tournament, 'id' | 'name' | 'code' | 'year' | 'status'>
   const tournaments = (tournamentsResult.data ?? []) as TournRow[]
 
-  // Count individual entries per tournament from submitted/approved applications
+  // Student application counts per tournament
+  const studentCounts = new Map<string, { total: number; approved: number; feeLkr: number }>()
+  if (tournaments.length > 0) {
+    const ids = tournaments.map(t => t.id)
+    const studentResult = await db
+      .from('student_applications')
+      .select('tournament_id, status, total_amount_lkr')
+      .in('tournament_id', ids)
+
+    for (const s of (studentResult.data ?? []) as { tournament_id: string; status: string; total_amount_lkr: number }[]) {
+      const cur = studentCounts.get(s.tournament_id) ?? { total: 0, approved: 0, feeLkr: 0 }
+      cur.total++
+      if (s.status === 'APPROVED') { cur.approved++; cur.feeLkr += s.total_amount_lkr }
+      studentCounts.set(s.tournament_id, cur)
+    }
+  }
+
+  // Association entry counts per tournament
   const entryCounts = new Map<string, number>()
   if (tournaments.length > 0) {
     const ids = tournaments.map(t => t.id)
-
     const appsResult = await db
       .from('applications')
       .select('id, tournament_id')
@@ -70,52 +93,98 @@ export default async function ExportPage() {
           </Link>
           <div>
             <h1 className="text-base font-semibold text-gray-900">Excel Export</h1>
-            <p className="text-xs text-gray-500">Download association entry lists per tournament</p>
+            <p className="text-xs text-gray-500">Download participant lists for submission to SLKF</p>
           </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-5 space-y-3">
+      <main className="max-w-4xl mx-auto px-4 py-5 space-y-4">
+
+        {/* Info banner */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex gap-3">
+          <svg className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm text-blue-700">
+            Download your approved participant list, then submit the Excel file to SLKF for final federation documentation and consolidated numbering.
+          </p>
+        </div>
+
         {tournaments.length === 0 && (
-          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 text-sm">
-            No tournaments found.
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <p className="text-gray-400 text-sm">No tournaments found.</p>
+            <Link href="/head-master/tournaments/create"
+              className="inline-block mt-3 text-sm text-red-600 font-medium hover:underline">
+              Create your first tournament →
+            </Link>
           </div>
         )}
 
         {tournaments.map(t => {
-          const count = entryCounts.get(t.id) ?? 0
+          const students = studentCounts.get(t.id) ?? { total: 0, approved: 0, feeLkr: 0 }
+          const assocCount = entryCounts.get(t.id) ?? 0
           return (
-            <div
-              key={t.id}
-              className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-4"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="font-semibold text-gray-900">{t.name}</p>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusStyle[t.status] ?? statusStyle.ARCHIVED}`}>
-                    {t.status}
-                  </span>
+            <div key={t.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              {/* Tournament header */}
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold text-gray-900 text-sm">{t.name}</p>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${statusStyle[t.status] ?? statusStyle.ARCHIVED}`}>
+                      {t.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">{t.code} · {t.year}</p>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {count > 0
-                    ? `${count} athlete entr${count !== 1 ? 'ies' : 'y'} across submitted applications`
-                    : 'No submitted entries yet'}
-                </p>
               </div>
 
-              {count > 0 ? (
-                <a
-                  href={`/api/head-master/export?tournament_id=${t.id}`}
-                  className="flex items-center gap-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 active:bg-green-800 px-4 py-2.5 rounded-xl transition-colors shrink-0"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                  </svg>
-                  Download .xlsx
-                </a>
-              ) : (
-                <span className="text-xs text-gray-300 shrink-0">No data</span>
+              {/* Student applications section */}
+              <div className="px-5 py-4 flex items-center gap-4 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900">Student Participants</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {students.approved} approved
+                    {students.total > students.approved ? ` · ${students.total - students.approved} pending/rejected` : ''}
+                    {students.feeLkr > 0 ? ` · LKR ${students.feeLkr.toLocaleString()} collected` : ''}
+                  </p>
+                </div>
+                {students.total > 0 ? (
+                  <a
+                    href={`/api/head-master/export/students?tournament_id=${t.id}`}
+                    className="flex items-center gap-2 text-sm font-semibold text-white bg-green-600 hover:bg-green-700 active:bg-green-800 px-4 py-2.5 rounded-xl transition-colors shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    </svg>
+                    Download Students .xlsx
+                  </a>
+                ) : (
+                  <span className="text-xs text-gray-300 shrink-0">No students yet</span>
+                )}
+              </div>
+
+              {/* Association entries section */}
+              {assocCount > 0 && (
+                <div className="px-5 py-4 border-t border-gray-50 flex items-center gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">Association Entries</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {assocCount} athlete entr{assocCount !== 1 ? 'ies' : 'y'} across submitted applications
+                    </p>
+                  </div>
+                  <a
+                    href={`/api/head-master/export?tournament_id=${t.id}`}
+                    className="flex items-center gap-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 px-4 py-2.5 rounded-xl transition-colors shrink-0"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                    </svg>
+                    Download Association .xlsx
+                  </a>
+                </div>
               )}
             </div>
           )

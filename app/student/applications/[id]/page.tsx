@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { StudentApplication, Tournament } from '@/types/database'
 import { ageCategoryLabel, formatWeightClass } from '@/lib/constants/karate'
 import Link from 'next/link'
+import QrCodeDisplay from '@/components/check-in/QrCode'
 
 export const metadata = { title: 'Application Status — SLKF Tournament' }
 
@@ -68,6 +69,24 @@ export default async function ApplicationStatusPage({ params }: { params: Promis
                 <Row label="Approved on" value={new Date(app.reviewed_at).toLocaleDateString('en-GB')} />
               )}
             </div>
+            {/* QR code for competition-day check-in */}
+            {app.check_in_token && (
+              <div className="border-t border-green-100 px-6 py-5 text-center">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Competition Day Check-in
+                </p>
+                <QrCodeDisplay
+                  token={app.check_in_token}
+                  size={150}
+                  label="Show this QR code to the official on competition day"
+                />
+                {app.checked_in_at && (
+                  <p className="text-xs text-emerald-600 font-medium mt-2">
+                    ✓ Checked in at {new Date(app.checked_in_at).toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

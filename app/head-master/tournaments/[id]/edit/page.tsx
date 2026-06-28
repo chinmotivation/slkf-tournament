@@ -1,10 +1,12 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect, notFound } from 'next/navigation'
 import TournamentForm from '@/components/tournaments/TournamentForm'
 import StatusBadge from '@/components/tournaments/StatusBadge'
-import type { Tournament } from '@/types/database'
+import TatamiManager from '@/components/tournaments/TatamiManager'
+import type { Tournament, TournamentTatami } from '@/types/database'
 
 export const metadata: Metadata = { title: 'Edit Tournament — SLKF Head Master' }
 
@@ -16,23 +18,33 @@ export default async function EditTournamentPage({ params }: Props) {
   const { id } = await params
 
   const supabase = await createClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const profileResult = await supabase
+  const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, role')
     .eq('id', user.id)
     .single()
-  const p = profileResult.data as { full_name: string; role: string } | null
+  const p = profile as { full_name: string; role: string } | null
   if (p?.role !== 'head_master') redirect('/unauthorized')
 
-  const result = await db.from('tournaments').select('*').eq('id', id).single()
-  if (result.error || !result.data) notFound()
-  const tournament = result.data as Tournament
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = createAdminClient() as any
+
+  const [tournResult, tatamisResult] = await Promise.all([
+    db.from('tournaments').select('*').eq('id', id).single(),
+    db
+      .from('tournament_tatamis')
+      .select('*')
+      .eq('tournament_id', id)
+      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: true }),
+  ])
+
+  if (tournResult.error || !tournResult.data) notFound()
+  const tournament = tournResult.data as Tournament
+  const tatamis   = (tatamisResult.data ?? []) as TournamentTatami[]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -54,10 +66,12 @@ export default async function EditTournamentPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
+      <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
         <div className="bg-white rounded-xl border border-gray-100 p-8">
           <TournamentForm initialData={tournament} tournamentId={id} />
         </div>
+
+        <TatamiManager tournamentId={id} initialTatamis={tatamis} />
       </main>
     </div>
   )

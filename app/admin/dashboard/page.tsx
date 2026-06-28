@@ -9,9 +9,11 @@ export const metadata: Metadata = { title: 'Admin Dashboard — SLKF' }
 
 const NAV = [
   { href: '/admin/dashboard',     label: 'Overview' },
+  { href: '/admin/tournaments',   label: 'Tournaments' },
   { href: '/admin/associations',  label: 'Associations' },
   { href: '/admin/registrations', label: 'Registrations' },
   { href: '/admin/students',      label: 'Students' },
+  { href: '/admin/system',        label: 'System' },
 ]
 
 function StatCard({ label, value, sub, color }: {
@@ -105,6 +107,18 @@ export default async function AdminDashboard() {
 
         {/* Quick links */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link href="/admin/tournaments"
+            className="group bg-white rounded-xl border border-gray-100 p-6 hover:border-indigo-200 hover:shadow-sm transition-all">
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-50 rounded-lg mb-4 group-hover:bg-indigo-100 transition-colors">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Tournaments & Draws</h2>
+            <p className="text-sm text-gray-500">{tournaments.length} tournaments · view brackets and live results.</p>
+          </Link>
+
           <Link href="/admin/associations"
             className="group bg-white rounded-xl border border-gray-100 p-6 hover:border-indigo-200 hover:shadow-sm transition-all">
             <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-50 rounded-lg mb-4 group-hover:bg-indigo-100 transition-colors">
@@ -139,6 +153,18 @@ export default async function AdminDashboard() {
             </div>
             <h2 className="text-base font-semibold text-gray-900 mb-1">Students</h2>
             <p className="text-sm text-gray-500">{studentApps.length} student applications · {athletes.length} roster athletes.</p>
+          </Link>
+
+          <Link href="/admin/system"
+            className="group bg-white rounded-xl border border-gray-100 p-6 hover:border-indigo-200 hover:shadow-sm transition-all">
+            <div className="inline-flex items-center justify-center w-10 h-10 bg-indigo-50 rounded-lg mb-4 group-hover:bg-indigo-100 transition-colors">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+            </div>
+            <h2 className="text-base font-semibold text-gray-900 mb-1">System Flow</h2>
+            <p className="text-sm text-gray-500">Visual overview of how the full tournament workflow operates end-to-end.</p>
           </Link>
         </div>
       </main>

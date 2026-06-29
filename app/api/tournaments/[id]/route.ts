@@ -26,7 +26,7 @@ export const GET: RouteHandler<{ id: string }> = async (_req, ctx) => {
   const tournament = result.data as Tournament | null
   if (result.error || !tournament) return notFound('Tournament')
 
-  if (auth.role === 'association_rep' && tournament.status !== 'OPEN') {
+  if (auth.role !== 'head_master' && auth.role !== 'super_admin' && tournament.status !== 'OPEN') {
     return notFound('Tournament')
   }
 
@@ -55,6 +55,7 @@ export const PUT: RouteHandler<{ id: string }> = async (request: NextRequest, ct
   const updateResult = await db
     .from('tournaments')
     .update({
+      tournament_type: d.tournament_type ?? 'SLKF',
       // Basic
       name:     d.name,
       code:     d.code,

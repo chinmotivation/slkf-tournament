@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireStudent, isNextResponse } from '@/lib/auth-guard'
 import { created, serverError, validationError, conflict, notFound } from '@/lib/api-response'
 import { applySchema } from '@/lib/validations/student'
-import { computeAgeCategory } from '@/lib/constants/karate'
+import { computeAgeCategory, computeISKAgeCategory } from '@/lib/constants/karate'
 import type { StudentProfile, Tournament } from '@/types/database'
 
 export async function POST(request: NextRequest) {
@@ -58,8 +58,11 @@ export async function POST(request: NextRequest) {
     return created(updateResult.data, 'Application re-submitted.')
   }
 
-  // Compute age category
-  const ageCode = computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date)
+  // Compute age category (ISK and SLKF have different category sets)
+  const isISKTournament = (tournament as any).tournament_type === 'ISK'
+  const ageCode = isISKTournament
+    ? computeISKAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date)
+    : computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date)
   if (!ageCode) return conflict('You are not eligible for this tournament (age below minimum).', 'AGE_INELIGIBLE')
 
   const insertResult = await db.from('student_applications').insert({
@@ -74,6 +77,11 @@ export async function POST(request: NextRequest) {
     kata_level: parsed.data.kata_level ?? null,
     kumite_entry: parsed.data.kumite_entry,
     kumite_weight_class: parsed.data.kumite_weight_class ?? null,
+    team_kata_entry: parsed.data.team_kata_entry ?? false,
+    team_kata_team_name: parsed.data.team_kata_team_name ?? null,
+    team_kata_member2_name: parsed.data.team_kata_member2_name ?? null,
+    team_kata_member3_name: parsed.data.team_kata_member3_name ?? null,
+    class_id: (parsed.data as any).class_id ?? null,
     payment_receipt_url: parsed.data.payment_receipt_url,
     total_amount_lkr: parsed.data.total_amount_lkr,
   }).select().single()
@@ -87,7 +95,10 @@ function buildPayload(
   tournament: Tournament,
   data: ReturnType<typeof applySchema.parse>
 ) {
-  const ageCode = computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date) ?? 'SENIOR'
+  const isISK = (tournament as any).tournament_type === 'ISK'
+  const ageCode = isISK
+    ? (computeISKAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date) ?? 'ISK_OVER21')
+    : (computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date) ?? 'SENIOR')
   return {
     full_name: profile.full_name,
     date_of_birth: profile.date_of_birth,
@@ -98,6 +109,11 @@ function buildPayload(
     kata_level: data.kata_level ?? null,
     kumite_entry: data.kumite_entry,
     kumite_weight_class: data.kumite_weight_class ?? null,
+    team_kata_entry: data.team_kata_entry ?? false,
+    team_kata_team_name: data.team_kata_team_name ?? null,
+    team_kata_member2_name: data.team_kata_member2_name ?? null,
+    team_kata_member3_name: data.team_kata_member3_name ?? null,
+    class_id: (data as any).class_id ?? null,
     payment_receipt_url: data.payment_receipt_url,
     total_amount_lkr: data.total_amount_lkr,
   }

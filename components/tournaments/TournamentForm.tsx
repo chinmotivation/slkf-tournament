@@ -136,6 +136,7 @@ export default function TournamentForm({ initialData, tournamentId }: Props) {
     resolver: zodResolver(tournamentSchema),
     defaultValues: initialData
       ? {
+          tournament_type: (initialData as any).tournament_type ?? 'SLKF',
           // Basic
           name:     initialData.name,
           code:     initialData.code,
@@ -197,6 +198,7 @@ export default function TournamentForm({ initialData, tournamentId }: Props) {
           notes: initialData.notes ?? '',
         }
       : {
+          tournament_type: 'SLKF' as const,
           name:    'Open Karate Competition – Under 14, Cadet, Junior, Under 21 & Senior – 2026',
           code:    'OKC-2026',
           year:    new Date().getFullYear(),
@@ -233,6 +235,7 @@ export default function TournamentForm({ initialData, tournamentId }: Props) {
         },
   })
 
+  const tournamentType    = watch('tournament_type')
   const competitionRules  = watch('competition_rules')
   const enableTeamKata    = watch('enable_team_kata')
   const allowLateReg      = watch('allow_late_registration')
@@ -259,6 +262,20 @@ export default function TournamentForm({ initialData, tournamentId }: Props) {
     }
   }
 
+  function handleTournamentTypeChange(type: 'SLKF' | 'ISK') {
+    setValue('tournament_type', type)
+    if (type === 'ISK') {
+      setValue('fee_individual_one_event_lkr', 2000)
+      setValue('fee_individual_both_events_lkr', 3500)
+      setValue('fee_team_kata_lkr', 1000)
+      setValue('enable_team_kata', true)
+    } else {
+      setValue('fee_individual_one_event_lkr', 2000)
+      setValue('fee_individual_both_events_lkr', 3000)
+      setValue('fee_team_kata_lkr', 3000)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
       {apiError && (
@@ -266,6 +283,47 @@ export default function TournamentForm({ initialData, tournamentId }: Props) {
           {apiError}
         </div>
       )}
+
+      {/* ── 0. Tournament Type ───────────────────────────────────────────────── */}
+      <section>
+        <SectionHeading>Tournament Type</SectionHeading>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {([
+            {
+              type: 'SLKF' as const,
+              title: 'SLKF Tournament',
+              desc: 'Sri Lanka Karate Federation standard tournament. Individual Kata & Kumite events. WKF / SLKF rules.',
+              border: 'border-red-400 bg-red-50',
+              badge: 'bg-red-100 text-red-700',
+            },
+            {
+              type: 'ISK' as const,
+              title: 'ISK Tournament',
+              desc: 'Japan Karatedo Inoue Ha Shito Ryu Keishin Kai Sri Lanka Branch. Includes Team Kata (T.KATA) event. ISK fee structure.',
+              border: 'border-blue-400 bg-blue-50',
+              badge: 'bg-blue-100 text-blue-700',
+            },
+          ]).map(opt => (
+            <button
+              key={opt.type}
+              type="button"
+              onClick={() => handleTournamentTypeChange(opt.type)}
+              className={`text-left rounded-xl border-2 p-4 transition-colors ${tournamentType === opt.type ? opt.border : 'border-gray-200 bg-white hover:border-gray-300'}`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${opt.badge}`}>{opt.type}</span>
+                <span className="text-sm font-semibold text-gray-800">{opt.title}</span>
+              </div>
+              <p className="text-xs text-gray-500">{opt.desc}</p>
+            </button>
+          ))}
+        </div>
+        {tournamentType === 'ISK' && (
+          <p className="text-xs text-blue-600 mt-3 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+            ISK mode: Team Kata (T.KATA) enabled — fee defaults set to ISK schedule (2,000 / 3,500 / +1,000 add-on). ISK Application Summary Sheet generated in Excel export.
+          </p>
+        )}
+      </section>
 
       {/* ── 1. Basic Information ─────────────────────────────────────────────── */}
       <section>

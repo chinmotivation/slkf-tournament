@@ -69,8 +69,11 @@ export default async function HeadMasterDashboard() {
             {[
               { label: 'Tournaments', href: '/head-master/tournaments' },
               { label: 'Applications', href: '/head-master/applications' },
+              { label: 'Students', href: '/head-master/students' },
+              { label: 'Team Kata', href: '/head-master/team-kata' },
               { label: 'Draw Engine', href: '/head-master/draw' },
               { label: 'Check-in', href: '/head-master/check-in' },
+              { label: 'Settings', href: '/head-master/settings' },
             ].map(link => (
               <Link
                 key={link.href}
@@ -279,6 +282,28 @@ export default async function HeadMasterDashboard() {
               </div>
               <h3 className="text-sm font-bold text-gray-900 mb-1">Competition Day Check-in</h3>
               <p className="text-sm text-gray-500">Scan QR codes and mark athlete attendance.</p>
+            </Link>
+
+            <Link href="/head-master/students" className="action-card group">
+              <div className="inline-flex items-center justify-center w-11 h-11 bg-indigo-50 rounded-xl mb-4 group-hover:bg-indigo-100 transition-colors">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-gray-900 mb-1">Student Class List</h3>
+              <p className="text-sm text-gray-500">View approved students and their ISK student numbers.</p>
+            </Link>
+
+            <Link href="/head-master/team-kata" className="action-card group">
+              <div className="inline-flex items-center justify-center w-11 h-11 bg-blue-50 rounded-xl mb-4 group-hover:bg-blue-100 transition-colors">
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-gray-900 mb-1">Team Kata (ISK)</h3>
+              <p className="text-sm text-gray-500">Form teams of 3 from approved students for ISK tournaments.</p>
             </Link>
 
             <Link href="/head-master/export" className="action-card group">

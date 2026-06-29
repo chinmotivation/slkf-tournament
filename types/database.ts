@@ -2,7 +2,8 @@
 // Manually maintained — update when the SQL schema changes.
 // For full Supabase CLI generation: npx supabase gen types typescript --linked
 
-export type UserRole = 'head_master' | 'association_rep' | 'super_admin' | 'student' | 'referee'
+export type UserRole = 'head_master' | 'super_admin' | 'student' | 'referee'
+export type TournamentType = 'SLKF' | 'ISK'
 export type StudentApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type TournamentStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'ARCHIVED'
 export type ApplicationStatus = 'DRAFT' | 'SUBMITTED' | 'PENDING_VERIFICATION' | 'APPROVED' | 'REJECTED'
@@ -167,6 +168,8 @@ export interface Association {
   whatsapp_number: string
   email: string | null
   is_profile_complete: boolean
+  dojo_code: string | null
+  last_student_number: number
   created_at: string
   updated_at: string
   created_by: string | null
@@ -203,6 +206,8 @@ export interface Tournament {
   venue: string | null
   competition_start_date: string | null
   competition_end_date: string | null
+  // Tournament type (SLKF standard or ISK)
+  tournament_type: TournamentType
   // Phase 0: competition rules
   competition_rules: CompetitionRules
   custom_rules_text: string | null
@@ -441,6 +446,15 @@ export interface StudentApplication {
   kata_level: string | null
   kumite_entry: boolean
   kumite_weight_class: string | null
+  // ISK: Team Kata event
+  team_kata_entry: boolean
+  team_kata_team_name: string | null
+  team_kata_member2_name: string | null
+  team_kata_member3_name: string | null
+  kata_approved: boolean | null
+  kumite_approved: boolean | null
+  team_kata_approved: boolean | null
+  class_id: string | null
   payment_receipt_url: string | null
   total_amount_lkr: number
   status: StudentApplicationStatus
@@ -520,6 +534,26 @@ export interface TournamentTatami {
   name: string
   display_order: number
   is_active: boolean
+  created_at: string
+}
+
+export interface StudentTeamKataGroup {
+  id: string
+  tournament_id: string
+  team_name: string
+  proposed_by: string
+  member1_app_id: string
+  member2_app_id: string
+  member3_app_id: string
+  status: 'PENDING' | 'CONFIRMED' | 'REJECTED'
+  created_at: string
+  updated_at: string
+}
+
+export interface HMClass {
+  id: string
+  hm_user_id: string
+  name: string
   created_at: string
 }
 

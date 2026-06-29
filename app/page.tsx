@@ -15,9 +15,7 @@ export default async function RootPage() {
     : role === 'super_admin'  ? '/admin/dashboard'
     : role === 'student'      ? '/student/dashboard'
     : role === 'referee'      ? '/referee/dashboard'
-    : '/association/dashboard'
+    : '/unauthorized'
 
   redirect(dest)
 }
-
-Pendi

@@ -56,23 +56,14 @@ export function requireHeadMaster() {
   return requireRole('head_master')
 }
 
-export function requireAssociationRep() {
-  return requireRole('association_rep')
-}
-
 export function requireStudent() {
   return requireRole('student')
 }
 
-// Allows head_master, association_rep, and super_admin (all "management" roles).
-export function requireAdminOrRep(): Promise<AuthContext | NextResponse> {
+export function requireAdminOrHM(): Promise<AuthContext | NextResponse> {
   return requireAuth().then(result => {
     if (isNextResponse(result)) return result
-    if (
-      result.role !== 'head_master' &&
-      result.role !== 'association_rep' &&
-      result.role !== 'super_admin'
-    ) return forbidden()
+    if (result.role !== 'head_master' && result.role !== 'super_admin') return forbidden()
     return result
   })
 }

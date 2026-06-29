@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireStudent, isNextResponse } from '@/lib/auth-guard'
 import { ok, serverError, validationError, notFound, forbidden, conflict } from '@/lib/api-response'
 import { applySchema } from '@/lib/validations/student'
-import { computeAgeCategory } from '@/lib/constants/karate'
+import { computeAgeCategory, computeISKAgeCategory } from '@/lib/constants/karate'
 import type { StudentApplication, StudentProfile, Tournament } from '@/types/database'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -50,13 +50,21 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
   if (tournResult.error || !tournResult.data) return serverError()
   const tournament = tournResult.data as Tournament
 
-  const ageCode = computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date) ?? app.age_category_code
+  const isISK = (tournament as any).tournament_type === 'ISK'
+  const ageCode = isISK
+    ? (computeISKAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date) ?? app.age_category_code)
+    : (computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date) ?? app.age_category_code)
 
   const updateResult = await db.from('student_applications').update({
     kata_entry: parsed.data.kata_entry,
     kata_level: parsed.data.kata_level ?? null,
     kumite_entry: parsed.data.kumite_entry,
     kumite_weight_class: parsed.data.kumite_weight_class ?? null,
+    team_kata_entry: parsed.data.team_kata_entry ?? false,
+    team_kata_team_name: parsed.data.team_kata_team_name ?? null,
+    team_kata_member2_name: parsed.data.team_kata_member2_name ?? null,
+    team_kata_member3_name: parsed.data.team_kata_member3_name ?? null,
+    class_id: (parsed.data as any).class_id ?? null,
     payment_receipt_url: parsed.data.payment_receipt_url,
     total_amount_lkr: parsed.data.total_amount_lkr,
     age_category_code: ageCode,

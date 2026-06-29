@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireAdminOrRep, isNextResponse } from '@/lib/auth-guard'
+import { requireAdminOrHM, isNextResponse } from '@/lib/auth-guard'
 import { ok, serverError, notFound, conflict } from '@/lib/api-response'
 import type { StudentApplication } from '@/types/database'
 
@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ id: string }> }
 
 export async function POST(_request: NextRequest, { params }: RouteContext) {
   const { id } = await params
-  const auth = await requireAdminOrRep()
+  const auth = await requireAdminOrHM()
   if (isNextResponse(auth)) return auth
 
   const supabase = await createClient()

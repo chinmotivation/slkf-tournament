@@ -6,6 +6,9 @@ const optionalDate = z
   .optional()
 
 export const tournamentSchema = z.object({
+  // ── Tournament type ─────────────────────────────────────────────────────────
+  tournament_type: z.enum(['SLKF', 'ISK']).default('SLKF'),
+
   // ── Basic info ──────────────────────────────────────────────────────────────
   name: z.string().min(3, 'Tournament name is required').max(200),
   code: z

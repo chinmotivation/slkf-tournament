@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       : p.role === 'student'     ? '/student/dashboard'
       : p.role === 'super_admin' ? '/admin/dashboard'
       : p.role === 'referee'     ? '/referee/dashboard'
-      : '/association/dashboard'
+      : '/unauthorized'
 
     return ok({ role: p.role, full_name: p.full_name, redirectTo })
   } catch {

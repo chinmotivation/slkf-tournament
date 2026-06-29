@@ -1,6 +1,8 @@
 // Karate domain constants: age categories, weight classes, belt grades, kata levels.
 // Weight classes for U12/U14/Cadet/Junior use WKF-standard estimates — update as needed.
 
+// ─── SLKF / WKF age categories ───────────────────────────────────────────────
+
 export type AgeCategoryCode = 'U10' | 'U12' | 'U14' | 'CADET' | 'JUNIOR' | 'U21' | 'SENIOR'
 export type GenderKey = 'MALE' | 'FEMALE'
 
@@ -37,6 +39,61 @@ export function ageCategoryLabel(code: AgeCategoryCode): string {
   return AGE_CATEGORIES.find(c => c.code === code)?.label ?? code
 }
 
+// ─── ISK Sri Lanka age categories (parallel set) ─────────────────────────────
+// Japan Karatedo Inoue Ha Shito Ryu Keishin Kai Sri Lanka Branch
+
+export type ISKAgeCategoryCode =
+  | 'ISK_U6' | 'ISK_U8' | 'ISK_U10' | 'ISK_U13'
+  | 'ISK_U1415' | 'ISK_U1617' | 'ISK_OVER21' | 'ISK_VETERAN'
+
+export interface ISKAgeCategory {
+  code: ISKAgeCategoryCode
+  label: string      // display label e.g. "U - 6"
+  sheetLabel: string // label used on Application Summary Sheet
+  minAge: number     // inclusive
+  maxAge: number     // exclusive (< maxAge); 999 = no upper limit
+}
+
+export const ISK_AGE_CATEGORIES: ISKAgeCategory[] = [
+  { code: 'ISK_U6',     label: 'Under 6',       sheetLabel: 'U - 6',     minAge: 0,  maxAge: 6   },
+  { code: 'ISK_U8',     label: 'Under 8',       sheetLabel: 'U - 8',     minAge: 6,  maxAge: 8   },
+  { code: 'ISK_U10',    label: 'Under 10',      sheetLabel: 'U - 10',    minAge: 8,  maxAge: 10  },
+  { code: 'ISK_U13',    label: 'Under 13',      sheetLabel: 'U - 13',    minAge: 10, maxAge: 13  },
+  { code: 'ISK_U1415',  label: 'Under 14/15',   sheetLabel: 'U – 14/15', minAge: 13, maxAge: 16  },
+  { code: 'ISK_U1617',  label: 'Under 16/17',   sheetLabel: 'U – 16/17', minAge: 16, maxAge: 18  },
+  { code: 'ISK_OVER21', label: 'Over 21',       sheetLabel: 'Over 21',   minAge: 18, maxAge: 999 },
+  { code: 'ISK_VETERAN','label': 'Veteran',      sheetLabel: 'Veteran',   minAge: 35, maxAge: 999 },
+]
+
+/**
+ * Returns ISK age category based on age at cutoff date.
+ * Veteran has no required cutoff — returns null if age < 0.
+ * Note: OVER21 and VETERAN overlap at 35+; VETERAN is self-declared
+ * (the student selects it; the default assignment uses OVER21 for ages 18–34).
+ */
+export function computeISKAgeCategory(dob: string, cutoffDate?: string): ISKAgeCategoryCode | null {
+  const cutoff = cutoffDate ? new Date(cutoffDate) : new Date()
+  const birth = new Date(dob)
+  let age = cutoff.getFullYear() - birth.getFullYear()
+  const m = cutoff.getMonth() - birth.getMonth()
+  if (m < 0 || (m === 0 && cutoff.getDate() < birth.getDate())) age--
+  if (age < 0) return null
+
+  // Exclude VETERAN from auto-assignment (it is self-declared by the student)
+  const cat = ISK_AGE_CATEGORIES
+    .filter(c => c.code !== 'ISK_VETERAN')
+    .find(c => age >= c.minAge && age < c.maxAge)
+  return cat?.code ?? null
+}
+
+export function iskAgeCategoryLabel(code: ISKAgeCategoryCode | string): string {
+  return ISK_AGE_CATEGORIES.find(c => c.code === code)?.label ?? code
+}
+
+export function iskAgeCategorySheetLabel(code: ISKAgeCategoryCode | string): string {
+  return ISK_AGE_CATEGORIES.find(c => c.code === code)?.sheetLabel ?? code
+}
+
 // ─── Weight classes (Kumite) ─────────────────────────────────────────────────
 // Key: `${ageCode}_${gender}` → array of weight class strings
 
@@ -57,8 +114,20 @@ export const KUMITE_WEIGHT_CLASSES: Record<string, string[]> = {
   SENIOR_FEMALE:['-45', '-50', '-55', '-61', '-68', '+68'],
 }
 
-export function getWeightClasses(ageCode: AgeCategoryCode, gender: GenderKey): string[] {
-  return KUMITE_WEIGHT_CLASSES[`${ageCode}_${gender}`] ?? []
+const ISK_TO_SLKF_WEIGHT_MAP: Record<string, AgeCategoryCode> = {
+  ISK_U6:     'U10',
+  ISK_U8:     'U10',
+  ISK_U10:    'U10',
+  ISK_U13:    'U14',
+  ISK_U1415:  'CADET',
+  ISK_U1617:  'JUNIOR',
+  ISK_OVER21: 'SENIOR',
+  ISK_VETERAN:'SENIOR',
+}
+
+export function getWeightClasses(ageCode: string, gender: GenderKey): string[] {
+  const slkfCode = (ISK_TO_SLKF_WEIGHT_MAP as Record<string, string>)[ageCode] ?? ageCode
+  return KUMITE_WEIGHT_CLASSES[`${slkfCode}_${gender}`] ?? []
 }
 
 export function formatWeightClass(wc: string): string {
@@ -92,11 +161,43 @@ export type BeltGrade = typeof BELT_GRADES[number]
 
 // ─── Fee calculation ──────────────────────────────────────────────────────────
 
+// SLKF / WKF default fees (LKR)
 export const FEE_KATA_OR_KUMITE = 2000
 export const FEE_BOTH = 3000
 
+// ISK Sri Lanka fee schedule (LKR) — Japan Karatedo Inoue Ha Keishin Kai
+// One event (Kata or Kumite): 2,000
+// Kata + Kumite:               3,500
+// Kata + T.KATA:               3,000
+// Kata + Kumite + T.KATA:      4,500
+// Team Kata add-on alone:      1,000 on top of individual base
+export const ISK_FEE_ONE_EVENT    = 2000
+export const ISK_FEE_KATA_KUMITE  = 3500
+export const ISK_FEE_TEAM_KATA_ADDON = 1000  // added to individual base when T.KATA is selected
+
+/**
+ * Standard SLKF fee calculation (backwards compatible — no team kata).
+ */
 export function calculateFee(kata: boolean, kumite: boolean): number {
   if (kata && kumite) return FEE_BOTH
   if (kata || kumite) return FEE_KATA_OR_KUMITE
   return 0
+}
+
+/**
+ * ISK fee calculation including Team Kata.
+ * Fee structure:
+ *   Kata or Kumite only     → 2,000
+ *   Kata + Kumite           → 3,500
+ *   Any individual + T.KATA → individual base + 1,000
+ *   T.KATA only (no individual event) → 2,000
+ */
+export function calculateISKFee(kata: boolean, kumite: boolean, teamKata: boolean): number {
+  let base = 0
+  if (kata && kumite) base = ISK_FEE_KATA_KUMITE
+  else if (kata || kumite) base = ISK_FEE_ONE_EVENT
+  else if (teamKata) base = ISK_FEE_ONE_EVENT  // T.KATA only
+
+  if (teamKata && (kata || kumite)) base += ISK_FEE_TEAM_KATA_ADDON
+  return base
 }

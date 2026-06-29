@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
-  KATA_LEVELS, calculateFee, getWeightClasses, formatWeightClass,
-  ageCategoryLabel, type AgeCategoryCode,
+  KATA_LEVELS, calculateFee, calculateISKFee, getWeightClasses, formatWeightClass,
+  ageCategoryLabel, iskAgeCategoryLabel, type AgeCategoryCode,
 } from '@/lib/constants/karate'
 import type { StudentProfile, Tournament } from '@/types/database'
 import { Toast } from '@/components/ui/Toast'
@@ -13,13 +13,17 @@ import { Toast } from '@/components/ui/Toast'
 interface Props {
   profile: StudentProfile
   tournament: Tournament
-  ageCategory: AgeCategoryCode
+  ageCategory: string
+  hmClasses: { id: string; name: string }[]
   existingApplication?: {
     id: string
     kata_entry: boolean
     kata_level: string | null
     kumite_entry: boolean
     kumite_weight_class: string | null
+    team_kata_entry: boolean
+    team_kata_team_name: string | null
+    class_id: string | null
     payment_receipt_url: string | null
     total_amount_lkr: number
   } | null
@@ -82,13 +86,18 @@ async function compressImage(file: File): Promise<File | null> {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function ApplyForm({ profile, tournament, ageCategory, existingApplication }: Props) {
+export default function ApplyForm({ profile, tournament, ageCategory, hmClasses, existingApplication }: Props) {
   const router = useRouter()
 
-  const [kata,        setKata]        = useState(existingApplication?.kata_entry ?? false)
-  const [kataLevel,   setKataLevel]   = useState(existingApplication?.kata_level ?? '')
-  const [kumite,      setKumite]      = useState(existingApplication?.kumite_entry ?? false)
-  const [weightClass, setWeightClass] = useState(existingApplication?.kumite_weight_class ?? '')
+  const [kata,          setKata]          = useState(existingApplication?.kata_entry ?? false)
+  const [kataLevel,     setKataLevel]     = useState(existingApplication?.kata_level ?? '')
+  const [kumite,        setKumite]        = useState(existingApplication?.kumite_entry ?? false)
+  const [weightClass,   setWeightClass]   = useState(existingApplication?.kumite_weight_class ?? '')
+  const [teamKata,        setTeamKata]        = useState(existingApplication?.team_kata_entry ?? false)
+  const [teamKataName,    setTeamKataName]    = useState(existingApplication?.team_kata_team_name ?? '')
+  const [teamMember2,     setTeamMember2]     = useState((existingApplication as any)?.team_kata_member2_name ?? '')
+  const [teamMember3,     setTeamMember3]     = useState((existingApplication as any)?.team_kata_member3_name ?? '')
+  const [classId,         setClassId]         = useState(existingApplication?.class_id ?? '')
 
   // Receipt state
   const [receiptFile,    setReceiptFile]    = useState<File | null>(null)   // processed file ready to upload
@@ -104,13 +113,21 @@ export default function ApplyForm({ profile, tournament, ageCategory, existingAp
 
   const [toast, setToast] = useState<{ message: string; variant: 'error' | 'warning' | 'success' } | null>(null)
 
-  const fee          = calculateFee(kata, kumite)
+  const isISK = (tournament as any).tournament_type === 'ISK'
+  const fee = isISK
+    ? calculateISKFee(kata, kumite, teamKata)
+    : kata && kumite
+      ? tournament.fee_individual_both_events_lkr
+      : kata || kumite
+        ? tournament.fee_individual_one_event_lkr
+        : 0
   const weightClasses = getWeightClasses(ageCategory, profile.gender)
   const isEdit       = !!existingApplication
   const busy         = compressing || uploading || submitting
 
-  useEffect(() => { if (!kumite) setWeightClass('') }, [kumite])
-  useEffect(() => { if (!kata)   setKataLevel('')   }, [kata])
+  useEffect(() => { if (!kumite)   setWeightClass('') },  [kumite])
+  useEffect(() => { if (!kata)     setKataLevel('')  },   [kata])
+  useEffect(() => { if (!teamKata) { setTeamKataName(''); setTeamMember2(''); setTeamMember3('') } }, [teamKata])
 
   // Revoke object URL on unmount
   useEffect(() => () => { if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current) }, [])
@@ -188,8 +205,8 @@ export default function ApplyForm({ profile, tournament, ageCategory, existingAp
     e.preventDefault()
     setToast(null)
 
-    if (!kata && !kumite) {
-      showError('Please select at least one event — KATA or KUMITE.')
+    if (!kata && !kumite && !(isISK && teamKata)) {
+      showError('Please select at least one event — KATA or KUMITE' + (isISK ? ', or TEAM KATA.' : '.'))
       return
     }
     if (kata && !kataLevel) {
@@ -198,6 +215,14 @@ export default function ApplyForm({ profile, tournament, ageCategory, existingAp
     }
     if (kumite && !weightClass) {
       showError('Please select a Kumite weight class.')
+      return
+    }
+    if (teamKata && !teamKataName.trim()) {
+      showError('Please enter a Team Name for Team Kata — agree on this with your 2 teammates.')
+      return
+    }
+    if (hmClasses.length > 0 && !classId) {
+      showError('Please select your training class / location.')
       return
     }
 
@@ -240,6 +265,11 @@ export default function ApplyForm({ profile, tournament, ageCategory, existingAp
         kata_level:           kata ? kataLevel : undefined,
         kumite_entry:         kumite,
         kumite_weight_class:  kumite ? weightClass : undefined,
+        team_kata_entry:        teamKata,
+        team_kata_team_name:    teamKata && teamKataName.trim() ? teamKataName.trim() : undefined,
+        team_kata_member2_name: teamKata && teamMember2.trim() ? teamMember2.trim() : undefined,
+        team_kata_member3_name: teamKata && teamMember3.trim() ? teamMember3.trim() : undefined,
+        class_id:             classId || null,
         payment_receipt_url:  receiptUrl,
         total_amount_lkr:     fee,
       }
@@ -297,10 +327,34 @@ export default function ApplyForm({ profile, tournament, ageCategory, existingAp
             </div>
             <div>
               <p className="text-[11px] text-gray-400">Age Category</p>
-              <p className="text-sm font-semibold text-red-600 mt-0.5">{ageCategoryLabel(ageCategory)}</p>
+              <p className="text-sm font-semibold text-red-600 mt-0.5">
+                {ageCategory.startsWith('ISK_') ? iskAgeCategoryLabel(ageCategory) : ageCategoryLabel(ageCategory as AgeCategoryCode)}
+              </p>
             </div>
           </div>
         </div>
+
+        {/* Training Class selection — only shown if HM has defined classes */}
+        {hmClasses.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Training Location / Class</p>
+            <select
+              value={classId}
+              onChange={e => setClassId(e.target.value)}
+              className={`w-full px-3.5 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-white ${
+                !classId ? 'border-red-300' : 'border-gray-300'
+              }`}
+            >
+              <option value="">— Select your training class —</option>
+              {hmClasses.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            {!classId && (
+              <p className="mt-1.5 text-xs text-red-500">Required — please select your training location</p>
+            )}
+          </div>
+        )}
 
         {/* Event Selection */}
         <div>
@@ -382,6 +436,90 @@ export default function ApplyForm({ profile, tournament, ageCategory, existingAp
                 </div>
               )}
             </div>
+
+            {/* TEAM KATA card — ISK tournaments only */}
+            {isISK && (
+              <div className={`rounded-xl border-2 transition-colors ${teamKata ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                <label className="flex items-center gap-4 p-4 cursor-pointer min-h-[64px]">
+                  <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                    teamKata ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'
+                  }`}>
+                    {teamKata && (
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  <input type="checkbox" checked={teamKata} onChange={e => setTeamKata(e.target.checked)} className="sr-only" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">TEAM KATA <span className="text-xs font-normal text-gray-400">(T.KATA)</span></p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {kata || kumite ? 'LKR 1,000 add-on · team of 3 from same dojo' : 'LKR 2,000 · team of 3 from same dojo'}
+                    </p>
+                  </div>
+                  {teamKata && <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">Selected</span>}
+                </label>
+
+                {teamKata && (
+                  <div className="px-4 pb-4 space-y-3">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Team Members</p>
+
+                    {/* Member 1 — auto */}
+                    <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5">
+                      <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-blue-900">{profile.full_name}</p>
+                        <p className="text-xs text-blue-500">You (team leader · auto-added)</p>
+                      </div>
+                    </div>
+
+                    {/* Member 2 */}
+                    <div className="flex items-center gap-3">
+                      <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+                      <input
+                        type="text"
+                        value={teamMember2}
+                        onChange={e => setTeamMember2(e.target.value)}
+                        placeholder="Teammate 2 full name"
+                        maxLength={150}
+                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Member 3 */}
+                    <div className="flex items-center gap-3">
+                      <span className="w-5 h-5 rounded-full bg-gray-400 text-white text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+                      <input
+                        type="text"
+                        value={teamMember3}
+                        onChange={e => setTeamMember3(e.target.value)}
+                        placeholder="Teammate 3 full name"
+                        maxLength={150}
+                        className="flex-1 px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Team name */}
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 block mb-1">
+                        Team Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={teamKataName}
+                        onChange={e => setTeamKataName(e.target.value)}
+                        placeholder="e.g. Waththala Team A"
+                        maxLength={80}
+                        className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-400 mt-1.5">
+                        Teammate names are shown to your Head Master when reviewing applications.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -391,7 +529,9 @@ export default function ApplyForm({ profile, tournament, ageCategory, existingAp
         }`}>
           <div>
             <p className="text-xs text-gray-500">Total Entry Fee</p>
-            {kata && kumite && <p className="text-[11px] text-gray-400 mt-0.5">Both events — discounted rate</p>}
+            {kata && kumite && !teamKata && <p className="text-[11px] text-gray-400 mt-0.5">Kata + Kumite — combined rate</p>}
+            {teamKata && (kata || kumite) && <p className="text-[11px] text-gray-400 mt-0.5">Includes Team Kata add-on</p>}
+            {teamKata && !kata && !kumite && <p className="text-[11px] text-gray-400 mt-0.5">Team Kata only</p>}
           </div>
           <p className={`text-2xl font-bold ${fee > 0 ? 'text-green-700' : 'text-gray-300'}`}>
             {fee > 0 ? `LKR ${fee.toLocaleString()}` : '—'}

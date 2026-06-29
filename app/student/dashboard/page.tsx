@@ -4,6 +4,7 @@ import type { Tournament, StudentApplication, StudentProfile } from '@/types/dat
 import { ageCategoryLabel } from '@/lib/constants/karate'
 import Link from 'next/link'
 import LogoutButton from '@/components/auth/LogoutButton'
+import ProposeTeamForm from './ProposeTeamForm'
 
 export const metadata = { title: 'My Dashboard — SLKF Tournament' }
 
@@ -26,7 +27,32 @@ export default async function StudentDashboard() {
 
   if (!profile) redirect('/register')
 
+  // Load team assignments for this student
+  const appIds = applications.map((a: any) => a.id)
+  let teamAssignments: Map<string, { team_name: string; status: string; id: string }> = new Map()
+  if (appIds.length > 0) {
+    const { data: teamGroups } = await db
+      .from('student_team_kata_groups')
+      .select('id, team_name, status, member1_app_id, member2_app_id, member3_app_id')
+      .or(appIds.map((id: string) => `member1_app_id.eq.${id},member2_app_id.eq.${id},member3_app_id.eq.${id}`).join(','))
+    for (const g of teamGroups ?? []) {
+      for (const appId of appIds) {
+        if ([g.member1_app_id, g.member2_app_id, g.member3_app_id].includes(appId)) {
+          teamAssignments.set(appId, { team_name: g.team_name, status: g.status, id: g.id })
+        }
+      }
+    }
+  }
+
   const appliedTournamentIds = new Set(applications.map((a: StudentApplication) => a.tournament_id))
+
+  // Show the team submission form for approved T.KATA applicants who haven't been confirmed yet
+  // (no group = can submit fresh; REJECTED = can re-submit)
+  const teamFormApps = applications.filter((a: any) => {
+    if (a.status !== 'APPROVED' || !a.team_kata_entry) return false
+    const group = teamAssignments.get(a.id)
+    return !group || group.status === 'REJECTED'
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -49,16 +75,59 @@ export default async function StudentDashboard() {
       <main className="max-w-4xl mx-auto px-4 py-5 space-y-6">
 
         {/* Profile summary card */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-[11px] text-gray-400 uppercase tracking-wide">Phone</p>
-            <p className="text-sm font-semibold text-gray-900 mt-0.5">{profile.phone}</p>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {/* Student number — prominent if assigned */}
+          {applications.some((a: StudentApplication) => a.student_number) && (
+            <div className="bg-red-600 px-4 py-3 flex items-center gap-3">
+              <div>
+                <p className="text-[10px] text-red-200 font-semibold uppercase tracking-widest">Student ID</p>
+                <p className="text-lg font-black text-white font-mono tracking-wider">
+                  {applications.find((a: StudentApplication) => a.student_number)?.student_number}
+                </p>
+              </div>
+              <p className="text-xs text-red-200 ml-auto">Share this ID with teammates</p>
+            </div>
+          )}
+          <div className="p-4 grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide">Phone</p>
+              <p className="text-sm font-semibold text-gray-900 mt-0.5">{profile.phone}</p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="text-[11px] text-gray-400 uppercase tracking-wide">Date of Birth</p>
+              <p className="text-sm font-semibold text-gray-900 mt-0.5">{new Date(profile.date_of_birth).toLocaleDateString('en-GB')}</p>
+            </div>
           </div>
-          <div className="bg-gray-50 rounded-lg p-3">
-            <p className="text-[11px] text-gray-400 uppercase tracking-wide">Date of Birth</p>
-            <p className="text-sm font-semibold text-gray-900 mt-0.5">{new Date(profile.date_of_birth).toLocaleDateString('en-GB')}</p>
+          <div className="border-t border-gray-100 px-4 py-2.5">
+            <Link href="/student/profile" className="text-xs text-red-600 hover:underline font-medium">
+              Edit Profile
+            </Link>
           </div>
         </div>
+
+        {/* Team Kata — submission form for team leaders */}
+        {teamFormApps.length > 0 && (
+          <section>
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Team Kata</h2>
+            <div className="space-y-3">
+              {teamFormApps.map((app: any) => {
+                const rejectedGroup = teamAssignments.get(app.id)
+                return (
+                  <ProposeTeamForm
+                    key={app.id}
+                    applicationId={app.id}
+                    tournamentId={app.tournament_id}
+                    myStudentNumber={app.student_number ?? ''}
+                    myFullName={profile.full_name}
+                    defaultTeamName={app.team_kata_team_name ?? ''}
+                    rejectedGroupId={rejectedGroup?.status === 'REJECTED' ? rejectedGroup.id : null}
+                    rejectedTeamName={rejectedGroup?.status === 'REJECTED' ? rejectedGroup.team_name : null}
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Open Tournaments */}
         {tournaments.length > 0 && (
@@ -113,39 +182,75 @@ export default async function StudentDashboard() {
             </div>
           ) : (
             <div className="space-y-3">
-              {applications.map((app: StudentApplication) => (
-                <Link
-                  key={app.id}
-                  href={`/student/applications/${app.id}`}
-                  className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 active:bg-gray-50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900 text-sm">
-                        {ageCategoryLabel(app.age_category_code as any)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {[app.kata_entry && 'KATA', app.kumite_entry && 'KUMITE'].filter(Boolean).join(' + ')}
-                      </span>
+              {applications.map((app: StudentApplication) => {
+                const teamInfo = teamAssignments.get(app.id)
+                const events = [
+                  (app as any).kata_entry   && 'KATA',
+                  (app as any).kumite_entry && 'KUMITE',
+                  (app as any).team_kata_entry && 'T.KATA',
+                ].filter(Boolean).join(' + ')
+                return (
+                  <Link
+                    key={app.id}
+                    href={`/student/applications/${app.id}`}
+                    className="flex items-center gap-3 bg-white rounded-xl border border-gray-200 p-4 active:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900 text-sm">
+                          {ageCategoryLabel(app.age_category_code as any)}
+                        </span>
+                        <span className="text-xs text-gray-500">{events}</span>
+                      </div>
+                      {teamInfo && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <TeamStatusBadge status={teamInfo.status} teamName={teamInfo.team_name} />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <StatusBadge status={app.status} />
+                        <span className="text-xs text-gray-400">
+                          LKR {app.total_amount_lkr.toLocaleString()} · {new Date(app.created_at).toLocaleDateString('en-GB')}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      <StatusBadge status={app.status} />
-                      <span className="text-xs text-gray-400">
-                        LKR {app.total_amount_lkr.toLocaleString()} · {new Date(app.created_at).toLocaleDateString('en-GB')}
-                      </span>
-                    </div>
-                  </div>
-                  <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              ))}
+                    <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                )
+              })}
             </div>
           )}
         </section>
       </main>
     </div>
   )
+}
+
+function TeamStatusBadge({ status, teamName }: { status: string; teamName: string }) {
+  if (status === 'CONFIRMED') {
+    return (
+      <span className="text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+        Team: {teamName}
+      </span>
+    )
+  }
+  if (status === 'PENDING') {
+    return (
+      <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+        Pending HM Approval: {teamName}
+      </span>
+    )
+  }
+  if (status === 'REJECTED') {
+    return (
+      <span className="text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+        Rejected: {teamName}
+      </span>
+    )
+  }
+  return null
 }
 
 function StatusBadge({ status }: { status: string }) {

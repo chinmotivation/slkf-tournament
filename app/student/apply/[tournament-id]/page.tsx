@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { computeAgeCategory, ageCategoryLabel, type AgeCategoryCode } from '@/lib/constants/karate'
+import { computeAgeCategory, computeISKAgeCategory, type AgeCategoryCode } from '@/lib/constants/karate'
 import type { StudentProfile, Tournament, StudentApplication } from '@/types/database'
 import ApplyForm from './ApplyForm'
 import Link from 'next/link'
@@ -27,6 +27,17 @@ export default async function ApplyPage({ params }: { params: Promise<{ 'tournam
 
   if (tournResult.error || !tournResult.data) redirect('/student/dashboard')
   const tournament = tournResult.data as Tournament
+
+  // Load HM's classes for this tournament (if any)
+  const hmClasses: { id: string; name: string }[] = []
+  if ((tournament as any).owner_id) {
+    const { data: classRows } = await db
+      .from('hm_classes')
+      .select('id, name')
+      .eq('hm_user_id', (tournament as any).owner_id)
+      .order('created_at', { ascending: true })
+    if (classRows) hmClasses.push(...classRows)
+  }
   if (tournament.status !== 'OPEN') redirect('/student/dashboard')
 
   const existing = existingResult.data as StudentApplication | null
@@ -34,15 +45,18 @@ export default async function ApplyPage({ params }: { params: Promise<{ 'tournam
   // If already approved, redirect to status page
   if (existing?.status === 'APPROVED') redirect(`/student/applications/${existing.id}`)
 
-  const ageCode = computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date)
+  const isISK = (tournament as any).tournament_type === 'ISK'
+  const ageCode = isISK
+    ? computeISKAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date)
+    : computeAgeCategory(profile.date_of_birth, tournament.age_eligibility_cutoff_date)
   if (!ageCode) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl border border-gray-200 p-8 max-w-md text-center">
           <p className="text-gray-700 font-medium">You are not eligible for this tournament.</p>
           <p className="text-sm text-gray-500 mt-1">Minimum age is 8 years.</p>
-          <Link href="/student/dashboard" className="mt-4 inline-block text-sm text-red-600 hover:underline">
-            Back to Dashboard
+          <Link href="/student/profile" className="mt-4 inline-block text-sm text-red-600 hover:underline">
+            Edit Profile
           </Link>
         </div>
       </div>
@@ -102,12 +116,16 @@ export default async function ApplyPage({ params }: { params: Promise<{ 'tournam
           profile={profile}
           tournament={tournament}
           ageCategory={ageCode}
+          hmClasses={hmClasses}
           existingApplication={existing ? {
             id: existing.id,
             kata_entry: existing.kata_entry,
             kata_level: existing.kata_level,
             kumite_entry: existing.kumite_entry,
             kumite_weight_class: existing.kumite_weight_class,
+            team_kata_entry: (existing as any).team_kata_entry ?? false,
+            team_kata_team_name: (existing as any).team_kata_team_name ?? null,
+            class_id: (existing as any).class_id ?? null,
             payment_receipt_url: existing.payment_receipt_url,
             total_amount_lkr: existing.total_amount_lkr,
           } : null}

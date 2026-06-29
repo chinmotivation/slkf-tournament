@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
   const result = await db
     .from('tournaments')
     .insert({
+      tournament_type: d.tournament_type ?? 'SLKF',
       // Basic
       name:     d.name,
       code:     d.code,

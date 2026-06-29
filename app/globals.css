@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode — .dark on <html> activates dark: utilities */
+@variant dark (&:where(.dark, .dark *));
+
 /* ── Design tokens ──────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
+  --background: #f6f8fb;
   --foreground: #0f172a;
   --brand:       #dc2626;
   --brand-dark:  #b91c1c;
@@ -28,10 +31,17 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not(.dark):not(.light) {
+    --background: #0f172a;
+    --foreground: #f1f5f9;
   }
+}
+
+/* ── Dark mode (class-based, persisted via localStorage) ────────────────────── */
+.dark {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  color-scheme: dark;
 }
 
 body {
@@ -40,6 +50,28 @@ body {
   font-family: var(--font-geist-sans, system-ui, -apple-system, 'Segoe UI', sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Light mode app chrome */
+:root:not(.dark) .bg-gray-50 {
+  background-color: #f6f8fb;
+}
+
+:root:not(.dark) .page-header {
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom-color: #dbe4ee;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px rgb(15 23 42 / 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+:root:not(.dark) .page-header nav a {
+  color: #475569;
+}
+
+:root:not(.dark) .page-header nav a:hover {
+  background: #eef2f7;
+  color: #0f172a;
 }
 
 /* ── Component layer ────────────────────────────────────────────────────────── */
@@ -216,4 +248,149 @@ body {
     text-transform: uppercase;
     line-height: 1;
   }
+
+  /* ── Theme toggle button (fixed top-right on every page) ── */
+  .theme-toggle {
+    position: fixed;
+    top: 0.75rem;
+    right: 1rem;
+    z-index: 9999;
+    width: 2.125rem;
+    height: 2.125rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1.5px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: #64748b;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 0.08);
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  }
+  .theme-toggle:hover {
+    background: white;
+    color: #0f172a;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+    transform: scale(1.08);
+  }
+  .theme-toggle:active { transform: scale(0.95); }
 }
+
+/* ── Dark mode overrides for CSS component classes ─────────────────────────── */
+/* These rules are unlayered, so they always win over @layer components */
+
+.dark .theme-toggle {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: #475569;
+  color: #94a3b8;
+}
+.dark .theme-toggle:hover {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: #64748b;
+}
+
+/* Cards */
+.dark .card,
+.dark .action-card,
+.dark .stat-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+.dark .stat-card:hover {
+  background: color-mix(in srgb, var(--stat-color, var(--brand)) 12%, #1e293b);
+}
+
+/* Page header / nav bar */
+.dark .page-header {
+  background: #1e293b;
+  border-bottom-color: #334155;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.2);
+}
+
+/* Buttons */
+.dark .btn-secondary {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+.dark .btn-secondary:hover:not(:disabled) {
+  background: #334155;
+  color: #f8fafc;
+  border-color: #64748b;
+}
+.dark .btn-ghost {
+  color: #94a3b8;
+}
+.dark .btn-ghost:hover:not(:disabled) {
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+/* Form inputs */
+.dark .input-field {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+.dark .input-field:focus {
+  background: #0f172a;
+  border-color: var(--brand);
+}
+.dark .input-field::placeholder { color: #475569; }
+.dark .input-field.field-error  { border-color: #f87171; background: #1e293b; }
+
+/* ── Dark mode overrides for inline Tailwind color utilities ────────────────── */
+/* Backgrounds */
+.dark .bg-white          { background-color: #1e293b; }
+.dark .bg-gray-50        { background-color: #0f172a; }
+.dark .bg-gray-100       { background-color: #1e293b; }
+.dark .bg-gray-200       { background-color: #334155; }
+
+/* Text */
+.dark .text-gray-900     { color: #f1f5f9; }
+.dark .text-gray-800     { color: #e2e8f0; }
+.dark .text-gray-700     { color: #cbd5e1; }
+.dark .text-gray-600     { color: #94a3b8; }
+.dark .text-gray-500     { color: #64748b; }
+.dark .text-gray-400     { color: #475569; }
+
+/* Borders */
+.dark .border-gray-50    { border-color: #0f172a; }
+.dark .border-gray-100   { border-color: #1e293b; }
+.dark .border-gray-200   { border-color: #334155; }
+.dark .border-gray-300   { border-color: #475569; }
+
+/* Form selects & inputs in pages (they use inline className, not .input-field) */
+.dark select,
+.dark input[type="text"]:not([class*="bg-"]),
+.dark input[type="email"]:not([class*="bg-"]),
+.dark input[type="password"]:not([class*="bg-"]),
+.dark input[type="tel"]:not([class*="bg-"]),
+.dark input[type="date"]:not([class*="bg-"]) {
+  background-color: #1e293b;
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+/* Inline bg-white on form inputs (ApplyForm, RegisterForm use this) */
+.dark .bg-white.rounded-lg,
+.dark .bg-white.rounded-xl,
+.dark .bg-white.rounded-2xl {
+  background-color: #1e293b;
+}
+
+/* Hover states */
+.dark .hover\:bg-gray-50:hover  { background-color: #1e293b; }
+.dark .hover\:bg-gray-100:hover { background-color: #334155; }
+
+/* Table row hover in dark mode */
+.dark tbody tr:hover { background-color: #1e293b !important; }
+
+/* Dividers */
+.dark .divide-gray-100 > * + * { border-color: #1e293b; }
+.dark .divide-gray-200 > * + * { border-color: #334155; }

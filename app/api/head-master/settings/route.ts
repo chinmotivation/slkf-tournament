@@ -20,12 +20,12 @@ export async function GET() {
   const db = supabase as any
   const { data, error } = await db
     .from('associations')
-    .select('dojo_code, association_name, district, instructor_name')
+    .select('dojo_code, association_name, district, instructor_name, logo_url')
     .eq('user_id', auth.userId)
-    .single()
+    .maybeSingle()
 
-  if (error) return serverError()
-  return ok(data)
+  if (error) { console.error('[settings GET]', error); return serverError() }
+  return ok(data ?? {})
 }
 
 export async function PUT(request: NextRequest) {
@@ -43,12 +43,15 @@ export async function PUT(request: NextRequest) {
 
   const { data, error } = await db
     .from('associations')
-    .update({ dojo_code: parsed.data.dojo_code })
-    .eq('user_id', auth.userId)
-    .select()
+    .upsert(
+      { user_id: auth.userId, dojo_code: parsed.data.dojo_code },
+      { onConflict: 'user_id' }
+    )
+    .select('dojo_code, association_name, district, instructor_name, logo_url')
     .single()
 
   if (error) {
+    console.error('[settings PUT]', error)
     if (error.code === '23505') return conflict('This dojo code is already taken. Choose a different one.')
     return serverError()
   }

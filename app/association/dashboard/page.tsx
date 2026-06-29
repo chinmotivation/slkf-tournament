@@ -24,7 +24,7 @@ export default async function AssociationDashboard() {
   const firstName = profile?.full_name?.split(' ')[0] ?? 'Coach'
 
   return (
-    <div className="min-h-screen" style={{ background: '#f8fafc' }}>
+    <div className="min-h-screen bg-gray-50">
 
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <header className="page-header sticky top-0 z-20">

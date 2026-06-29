@@ -137,31 +137,54 @@ export default async function StudentDashboard() {
               {tournaments.map((t: Tournament) => {
                 const alreadyApplied = appliedTournamentIds.has(t.id)
                 return (
-                  <div key={t.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="p-4">
-                      <p className="font-semibold text-gray-900">{t.name}</p>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Deadline: <strong>{new Date(t.registration_deadline).toLocaleDateString('en-GB')}</strong>
+                  <div key={t.id} className="rounded-xl overflow-hidden shadow-sm">
+                    {/* Bold competition header */}
+                    <div className="relative overflow-hidden px-4 pt-4 pb-5"
+                      style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #312e81 100%)' }}>
+                      {/* Decorative circle */}
+                      <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full opacity-10"
+                        style={{ background: 'radial-gradient(circle, #fff 0%, transparent 70%)' }} />
+                      <p className="text-[9px] font-black text-indigo-300 uppercase tracking-[0.25em] mb-1.5">
+                        ◆ Open Competition
                       </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Single event — LKR {t.fee_individual_one_event_lkr.toLocaleString()}
-                        &nbsp;·&nbsp;
-                        Both events — LKR {t.fee_individual_both_events_lkr.toLocaleString()}
-                      </p>
+                      <p className="font-black text-white text-base leading-snug">{t.name}</p>
                     </div>
-                    <div className="border-t border-gray-100 px-4 py-3">
+
+                    {/* Details */}
+                    <div className="bg-white border-x border-b border-gray-200 p-4 grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Deadline</p>
+                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                          {new Date(t.registration_deadline).toLocaleDateString('en-GB')}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Entry Fee</p>
+                        <p className="text-sm font-bold text-gray-900 mt-0.5">
+                          LKR {t.fee_individual_one_event_lkr.toLocaleString()}
+                          <span className="text-xs font-normal text-gray-400"> / event</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* CTA */}
+                    <div className="bg-white border-x border-b border-gray-200 rounded-b-xl px-4 pb-4">
                       {alreadyApplied ? (
-                        <span className="text-xs bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1 font-medium">
+                        <span className="inline-flex items-center gap-1.5 text-xs bg-green-50 text-green-700 border border-green-200 rounded-full px-3 py-1.5 font-medium">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
                           Application submitted
                         </span>
                       ) : (
                         <Link
                           href={`/student/apply/${t.id}`}
-                          className="flex items-center justify-center gap-2 w-full bg-red-600 active:bg-red-700 text-white text-sm font-semibold py-3 rounded-lg transition-colors"
+                          className="flex items-center justify-center gap-2 w-full text-white text-sm font-bold py-3 rounded-lg transition-all active:scale-95"
+                          style={{ background: 'linear-gradient(135deg, #dc2626, #b91c1c)' }}
                         >
                           Apply Now
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                           </svg>
                         </Link>
                       )}

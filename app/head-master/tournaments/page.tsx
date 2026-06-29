@@ -45,18 +45,18 @@ export default async function HeadMasterTournamentsPage({ searchParams }: Props)
   const tournaments = (result.data ?? []) as Tournament[]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 px-6 py-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+      <header className="bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-red-600 uppercase tracking-wide">SLKF Tournament System</span>
-            <h1 className="text-lg font-bold text-gray-900 mt-0.5">Tournaments</h1>
+            <h1 className="text-lg font-bold text-gray-900 dark:text-slate-100 mt-0.5">Tournaments</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/head-master/dashboard" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+            <Link href="/head-master/dashboard" className="text-sm text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 transition-colors">
               Dashboard
             </Link>
-            <span className="text-sm text-gray-600">{p?.full_name}</span>
+            <span className="text-sm text-gray-600 dark:text-slate-300">{p?.full_name}</span>
             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
               Head Master
             </span>
@@ -74,7 +74,7 @@ export default async function HeadMasterTournamentsPage({ searchParams }: Props)
                 className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-colors ${
                   activeStatus === f.value
                     ? 'bg-red-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800'
                 }`}
               >
                 {f.label}

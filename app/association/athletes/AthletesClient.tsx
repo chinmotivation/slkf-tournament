@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { Athlete, GenderType } from '@/types/database'
 
 type Tab = 'all' | 'active' | 'inactive'
@@ -24,7 +24,8 @@ function calcAge(dob: string): number {
   return age
 }
 
-function formatDob(dob: string): string {
+function formatDob(dob: string, mounted: boolean): string {
+  if (!mounted) return dob  // server / pre-hydration: return ISO string, no locale call
   return new Date(dob).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
@@ -38,11 +39,14 @@ export default function AthletesClient({ athletes: initial }: { athletes: Athlet
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [globalError, setGlobalError] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
 
   const [addForm, setAddForm] = useState<FormState>(EMPTY_ADD)
   const [editForm, setEditForm] = useState<EditFormState>({
     full_name: '', date_of_birth: '', gender: 'MALE', is_active: true,
   })
+
+  useEffect(() => { setMounted(true) }, [])
 
   const counts = {
     all: athletes.length,
@@ -135,7 +139,7 @@ export default function AthletesClient({ athletes: initial }: { athletes: Athlet
     clearErrors()
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = mounted ? new Date().toISOString().split('T')[0] : ''
 
   return (
     <div className="space-y-4">
@@ -225,8 +229,8 @@ export default function AthletesClient({ athletes: initial }: { athletes: Athlet
               <AthleteCard
                 key={athlete.id}
                 athlete={athlete}
-                age={calcAge(athlete.date_of_birth)}
-                dob={formatDob(athlete.date_of_birth)}
+                age={mounted ? calcAge(athlete.date_of_birth) : 0}
+                dob={formatDob(athlete.date_of_birth, mounted)}
                 onEdit={() => startEdit(athlete)}
                 disabled={!!editingId || adding}
               />

@@ -48,7 +48,7 @@ export default async function HeadMasterDashboard() {
   const firstName = p?.full_name?.split(' ')[0] ?? 'Coach'
 
   return (
-    <div className="min-h-screen" style={{ background: '#f8fafc' }}>
+    <div className="min-h-screen bg-gray-50">
 
       {/* ── Header ────────────────────────────────────────────────────────────── */}
       <header className="page-header sticky top-0 z-20">
@@ -61,7 +61,7 @@ export default async function HeadMasterDashboard() {
               <p className="text-[10px] font-black text-red-600 uppercase tracking-[0.1em] leading-none mb-0.5">
                 Tournament System
               </p>
-              <h1 className="text-sm font-bold text-gray-900 leading-none">Head Master Portal</h1>
+              <h1 className="text-sm font-bold text-gray-900 dark:text-slate-100 leading-none">Head Master Portal</h1>
             </div>
           </div>
 
@@ -78,7 +78,7 @@ export default async function HeadMasterDashboard() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+                className="text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors"
               >
                 {link.label}
               </Link>
@@ -91,7 +91,7 @@ export default async function HeadMasterDashboard() {
                 <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center shrink-0">
                   <span className="text-[10px] font-bold text-red-700">{initials(p.full_name)}</span>
                 </div>
-                <span className="text-sm font-medium text-gray-700 hidden lg:block">{p.full_name}</span>
+                <span className="text-sm font-medium text-gray-700 dark:text-slate-300 hidden lg:block">{p.full_name}</span>
               </div>
             )}
             <span className="badge bg-red-100 text-red-700 hidden sm:inline-flex">Head Master</span>
@@ -198,13 +198,13 @@ export default async function HeadMasterDashboard() {
                 return (
                   <div
                     key={t.id}
-                    className={`px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 transition-colors ${
-                      i < tournaments.length - 1 ? 'border-b border-gray-100' : ''
+                    className={`px-5 py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${
+                      i < tournaments.length - 1 ? 'border-b border-gray-100 dark:border-slate-700' : ''
                     }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold text-gray-900 text-sm truncate">{t.name}</p>
+                        <p className="font-semibold text-gray-900 dark:text-slate-100 text-sm truncate">{t.name}</p>
                         <span className={`badge text-[10px] ${statusCls[t.status] ?? 'bg-gray-100 text-gray-500'}`}>
                           {t.status}
                         </span>
@@ -214,7 +214,7 @@ export default async function HeadMasterDashboard() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                      <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">
                         {t.code} · {apps.length} student{apps.length !== 1 ? 's' : ''}
                       </p>
                     </div>

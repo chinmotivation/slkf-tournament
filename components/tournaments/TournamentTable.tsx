@@ -15,35 +15,35 @@ function formatDate(d: string | null) {
 export default function TournamentTable({ tournaments }: Props) {
   if (tournaments.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-        <p className="text-gray-500 text-sm">No tournaments yet. Create your first tournament.</p>
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 p-12 text-center">
+        <p className="text-gray-500 dark:text-slate-400 text-sm">No tournaments yet. Create your first tournament.</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-100 bg-gray-50">
-            <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tournament</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Year</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Deadline</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
-            <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+          <tr className="border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-950">
+            <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Tournament</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Year</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Deadline</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Status</th>
+            <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wide">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-gray-50 dark:divide-slate-800">
           {tournaments.map(t => (
-            <tr key={t.id} className="hover:bg-gray-50 transition-colors">
+            <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
               <td className="px-6 py-4">
                 <div>
-                  <p className="font-medium text-gray-900">{t.name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{t.code}</p>
+                  <p className="font-semibold text-indigo-900 dark:text-indigo-300">{t.name}</p>
+                  <p className="text-xs text-gray-400 dark:text-slate-500 mt-0.5">{t.code}</p>
                 </div>
               </td>
-              <td className="px-4 py-4 text-gray-600">{t.year}</td>
-              <td className="px-4 py-4 text-gray-600">{formatDate(t.registration_deadline)}</td>
+              <td className="px-4 py-4 text-gray-600 dark:text-slate-400">{t.year}</td>
+              <td className="px-4 py-4 text-gray-600 dark:text-slate-400">{formatDate(t.registration_deadline)}</td>
               <td className="px-4 py-4">
                 <StatusBadge status={t.status} />
               </td>
@@ -54,7 +54,7 @@ export default function TournamentTable({ tournaments }: Props) {
                   )}
                   <Link
                     href={`/head-master/tournaments/${t.id}/edit`}
-                    className="text-sm font-medium text-gray-600 hover:text-gray-900 border border-gray-200 hover:border-gray-300 px-3 py-1 rounded-md transition-colors"
+                    className="text-sm font-medium text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 border border-gray-200 dark:border-slate-700 hover:border-gray-300 dark:hover:border-slate-600 px-3 py-1 rounded-md transition-colors"
                   >
                     Edit
                   </Link>

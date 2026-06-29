@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { requireHeadMaster, isNextResponse } from '@/lib/auth-guard'
-import { ok, badRequest, notFound, serverError } from '@/lib/api-response'
+import { ok, badRequest, notFound, forbidden } from '@/lib/api-response'
 
 export interface CheckInResult {
   type: 'individual' | 'student'
@@ -39,12 +39,17 @@ export async function GET(request: NextRequest) {
       id, full_name, age_category_code, gender, event, association_id,
       deleted_at, check_in_token, checked_in_at,
       application:applications(status),
-      tournament:tournaments(id, name)
+      tournament:tournaments(id, name, owner_id)
     `)
     .eq('check_in_token', token)
     .single()
 
   if (entry) {
+    // SEC-5: block cross-tournament check-in lookup
+    if (entry.tournament?.owner_id !== auth.userId) {
+      return forbidden('This entry belongs to a different tournament.')
+    }
+
     if (entry.deleted_at) {
       return ok<CheckInResult>({
         type: 'individual',
@@ -65,7 +70,6 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Fetch association name
     const { data: assoc } = await db
       .from('associations')
       .select('association_name')
@@ -105,12 +109,17 @@ export async function GET(request: NextRequest) {
     .select(`
       id, full_name, age_category_code, gender, kata_entry, kumite_entry,
       student_number, status, check_in_token, checked_in_at,
-      tournament:tournaments(id, name)
+      tournament:tournaments(id, name, owner_id)
     `)
     .eq('check_in_token', token)
     .single()
 
   if (studentApp) {
+    // SEC-5: block cross-tournament check-in lookup
+    if (studentApp.tournament?.owner_id !== auth.userId) {
+      return forbidden('This entry belongs to a different tournament.')
+    }
+
     const events = [
       studentApp.kata_entry && 'KATA',
       studentApp.kumite_entry && 'KUMITE',

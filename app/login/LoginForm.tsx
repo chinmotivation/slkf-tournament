@@ -7,6 +7,15 @@ import { useRouter } from 'next/navigation'
 import { loginSchema, type LoginInput } from '@/lib/validations/auth'
 import type { ApiError } from '@/lib/api-response'
 
+function AlertIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" clipRule="evenodd"
+        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" />
+    </svg>
+  )
+}
+
 export default function LoginForm() {
   const router = useRouter()
   const [apiError, setApiError] = useState<string | null>(null)
@@ -46,55 +55,70 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
       {apiError && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm" role="alert">
-          {apiError}
+        <div
+          className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3.5 text-sm"
+          role="alert"
+        >
+          <AlertIcon />
+          <span>{apiError}</span>
         </div>
       )}
 
-      <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+      <div className="space-y-1.5">
+        <label htmlFor="email" className="block text-sm font-semibold text-gray-700">
           Email address
         </label>
         <input
           id="email"
           type="email"
           autoComplete="email"
+          inputMode="email"
           {...register('email')}
-          className={`w-full px-3.5 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${
-            errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
-          }`}
+          className={`input-field ${errors.email ? 'field-error' : ''}`}
           placeholder="you@association.lk"
           disabled={isSubmitting}
         />
         {errors.email && (
-          <p className="mt-1.5 text-xs text-red-600">{errors.email.message}</p>
+          <p className="flex items-center gap-1.5 text-xs text-red-600 mt-1">
+            <AlertIcon />
+            {errors.email.message}
+          </p>
         )}
       </div>
 
-      <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-          Password
-        </label>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label htmlFor="password" className="block text-sm font-semibold text-gray-700">
+            Password
+          </label>
+          <a
+            href="/forgot-password"
+            className="text-xs text-red-600 hover:text-red-700 font-semibold transition-colors"
+          >
+            Forgot password?
+          </a>
+        </div>
         <input
           id="password"
           type="password"
           autoComplete="current-password"
           {...register('password')}
-          className={`w-full px-3.5 py-2.5 rounded-lg border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent ${
-            errors.password ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'
-          }`}
+          className={`input-field ${errors.password ? 'field-error' : ''}`}
           placeholder="••••••••"
           disabled={isSubmitting}
         />
         {errors.password && (
-          <p className="mt-1.5 text-xs text-red-600">{errors.password.message}</p>
+          <p className="flex items-center gap-1.5 text-xs text-red-600 mt-1">
+            <AlertIcon />
+            {errors.password.message}
+          </p>
         )}
       </div>
 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 flex items-center justify-center gap-2"
+        className="btn btn-primary btn-xl w-full mt-1"
       >
         {isSubmitting ? (
           <>

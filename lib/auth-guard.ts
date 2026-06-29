@@ -64,12 +64,21 @@ export function requireStudent() {
   return requireRole('student')
 }
 
+// Allows head_master, association_rep, and super_admin (all "management" roles).
 export function requireAdminOrRep(): Promise<AuthContext | NextResponse> {
   return requireAuth().then(result => {
     if (isNextResponse(result)) return result
-    if (result.role !== 'head_master' && result.role !== 'association_rep') return forbidden()
+    if (
+      result.role !== 'head_master' &&
+      result.role !== 'association_rep' &&
+      result.role !== 'super_admin'
+    ) return forbidden()
     return result
   })
+}
+
+export function requireReferee() {
+  return requireRole('referee')
 }
 
 export function isNextResponse(value: unknown): value is NextResponse {

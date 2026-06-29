@@ -64,6 +64,29 @@ export default function DrawCategoryTable({ brackets, tournamentId }: Props) {
     }
   }
 
+  async function handleReset(bracketId: string) {
+    if (!confirm('Reset this bracket? All recorded match results will be deleted and the draw will return to PREVIEW so you can regenerate it.')) return
+    setLoadingId(bracketId)
+    setError(null)
+    try {
+      const res = await fetch('/api/draw/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bracket_id: bracketId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error ?? 'Reset failed')
+      } else {
+        router.refresh()
+      }
+    } catch {
+      setError('Network error — please try again.')
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
   async function handleLock(bracketId: string) {
     if (!confirm('Lock this bracket? Match numbers will be assigned and positions will be frozen.')) return
     setLoadingId(bracketId)
@@ -199,6 +222,18 @@ export default function DrawCategoryTable({ brackets, tournamentId }: Props) {
                                 className="text-xs font-medium px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                               >
                                 {busy ? 'Locking…' : 'Lock Draw'}
+                              </button>
+                            )}
+
+                            {/* LOCKED / IN_PROGRESS / COMPLETE: Reset back to PREVIEW */}
+                            {b.status !== 'PREVIEW' && (
+                              <button
+                                onClick={() => handleReset(b.id)}
+                                disabled={busy}
+                                title="Delete all match results and return to PREVIEW to regenerate"
+                                className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                              >
+                                {busy ? '…' : 'Reset Draw'}
                               </button>
                             )}
 

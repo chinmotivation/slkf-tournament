@@ -1,32 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireHeadMaster, isNextResponse } from '@/lib/auth-guard'
+import { z } from 'zod'
+import { zodUuid } from '@/lib/validations/uuid'
 
 // Assigns sequential match_number values to all matches in a bracket,
 // then transitions status PREVIEW → LOCKED.
-//
-// Match numbering order: first round (highest round_number) position 1, 2, 3…
-// then each subsequent round, so officials can call "Match 1", "Match 2" etc.
+
+const schema = z.object({
+  bracket_id: zodUuid('bracket_id must be a valid UUID'),
+})
 
 export async function POST(req: NextRequest) {
+  const auth = await requireHeadMaster()
+  if (isNextResponse(auth)) return auth
+
+  const body = await req.json().catch(() => ({}))
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' }, { status: 400 })
+  }
+  const { bracket_id } = parsed.data
+
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  // Auth
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if ((profile as { role: string } | null)?.role !== 'head_master')
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  // Input
-  const body = await req.json().catch(() => ({}))
-  const { bracket_id } = body as { bracket_id?: string }
-  if (!bracket_id) return NextResponse.json({ error: 'bracket_id required' }, { status: 400 })
-
-  // Load bracket
+  // RLS (migration 030) ensures HM can only access their own brackets.
   const { data: bracketRow } = await db
     .from('draw_brackets').select('id, status, generated_at').eq('id', bracket_id).single()
   if (!bracketRow)
@@ -36,8 +36,6 @@ export async function POST(req: NextRequest) {
   if (!bracketRow.generated_at)
     return NextResponse.json({ error: 'Generate the draw before locking' }, { status: 409 })
 
-  // Load all matches ordered for sequential numbering:
-  // first round first (desc round_number), then by position within each round
   const { data: matchesData } = await db
     .from('bracket_matches')
     .select('id, round_number, position, status')
@@ -52,22 +50,25 @@ export async function POST(req: NextRequest) {
   if (matches.length === 0)
     return NextResponse.json({ error: 'No matches found — generate the draw first' }, { status: 409 })
 
-  // Assign match numbers (skip BYE_WIN matches — they have no live contest)
+  // Assign match numbers in parallel (each updates a different row)
   let matchNumber = 1
+  const numberingUpdates: Promise<unknown>[] = []
   for (const m of matches) {
     if (m.status === 'BYE_WIN') continue
-    await db.from('bracket_matches')
-      .update({ match_number: matchNumber++ })
-      .eq('id', m.id)
+    const num = matchNumber++
+    numberingUpdates.push(
+      db.from('bracket_matches').update({ match_number: num }).eq('id', m.id)
+    )
   }
+  await Promise.all(numberingUpdates)
 
-  // Freeze the bracket
+  const lockedAt = new Date().toISOString()
   await db.from('draw_brackets')
     .update({
       status: 'LOCKED',
-      locked_at: new Date().toISOString(),
-      locked_by: user.id,
-      updated_at: new Date().toISOString(),
+      locked_at: lockedAt,
+      locked_by: auth.userId,
+      updated_at: lockedAt,
     })
     .eq('id', bracket_id)
 
@@ -75,6 +76,6 @@ export async function POST(req: NextRequest) {
     success: true,
     bracket_id,
     matches_numbered: matchNumber - 1,
-    locked_at: new Date().toISOString(),
+    locked_at: lockedAt,
   })
 }

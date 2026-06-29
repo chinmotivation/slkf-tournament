@@ -12,6 +12,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
   if (isNextResponse(auth)) return auth
 
   const supabase = await createClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
   const appResult = await db.from('student_applications').select('*').eq('id', id).single()
@@ -21,18 +22,20 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
   if (app.status === 'APPROVED') return conflict('Already approved.', 'ALREADY_APPROVED')
   if (app.status === 'REJECTED') return conflict('Application was rejected. Student must re-apply.', 'ALREADY_REJECTED')
 
-  // Generate student number: SLK-{year}-{4-digit seq}
-  const year = new Date().getFullYear()
-  const countResult = await db
-    .from('student_applications')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'APPROVED')
-  const seq = (countResult.count ?? 0) + 1
-  const studentNumber = `SLK-${year}-${String(seq).padStart(4, '0')}`
+  // BUG-1: use the atomic DB function to avoid race conditions.
+  // assign_student_number() does UPDATE...RETURNING in a single transaction,
+  // guaranteeing uniqueness even under concurrent approvals.
+  const { data: studentNumber, error: seqError } = await db
+    .rpc('assign_student_number', { p_tournament_id: app.tournament_id })
+
+  if (seqError || !studentNumber) {
+    console.error('[approve] assign_student_number error:', seqError)
+    return serverError('Failed to generate student number.')
+  }
 
   const updateResult = await db.from('student_applications').update({
     status: 'APPROVED',
-    student_number: studentNumber,
+    student_number: studentNumber as string,
     reviewed_by: auth.userId,
     reviewed_at: new Date().toISOString(),
     review_notes: null,

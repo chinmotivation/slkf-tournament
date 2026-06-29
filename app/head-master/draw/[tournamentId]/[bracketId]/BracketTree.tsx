@@ -23,16 +23,16 @@ const CONN_W = 52
 // ─── Participant name slot inside a match card ────────────────────────────────
 
 function SlotContent({ p, isWinner }: { p: ParticipantInfo | null; isWinner: boolean }) {
-  if (!p) return <span className="text-[11px] text-gray-300">TBD</span>
-  if (p.is_bye) return <span className="text-[11px] text-gray-300 italic">BYE</span>
+  if (!p) return <span className="text-[11px] text-gray-400 italic">TBD</span>
+  if (p.is_bye) return <span className="text-[11px] text-gray-400 italic">BYE</span>
   return (
     <div className="min-w-0 flex-1">
-      <div className={`text-[11px] font-medium truncate ${isWinner ? 'text-green-800' : 'text-gray-800'}`}>
+      <div className={`text-[12px] font-semibold truncate ${isWinner ? 'text-green-700' : 'text-gray-900'}`}>
         {isWinner && <span className="text-green-500 mr-1">✓</span>}
         {p.full_name ?? '—'}
       </div>
       {p.association_name && (
-        <div className="text-[10px] text-gray-400 truncate leading-tight mt-0.5">{p.association_name}</div>
+        <div className="text-[10px] text-gray-500 truncate leading-tight mt-0.5">{p.association_name}</div>
       )}
     </div>
   )
@@ -71,6 +71,7 @@ function MatchCard({
   const p1Real = p1 && !p1.is_bye
   const p2Real = p2 && !p2.is_bye
   const isRecordable = canRecord && match.status === 'PENDING' && bothFilled && p1Real && p2Real
+  const isCorrectible = canRecord && match.status === 'COMPLETE' && !!(p1Real && p2Real)
 
   // "Pick winner" overlay replaces the card content when isPicking
   if (isPicking) {
@@ -79,8 +80,8 @@ function MatchCard({
         style={{ height: MATCH_H, width: COL_W }}
         className="border border-blue-300 rounded-lg overflow-hidden bg-blue-50 shadow-md flex flex-col"
       >
-        <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-blue-600 uppercase tracking-wide">
-          Who won?
+        <div className={`px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide ${isCorrectible ? 'text-amber-600' : 'text-blue-600'}`}>
+          {isCorrectible ? 'Who actually won?' : 'Who won?'}
         </div>
         <div className="flex flex-col gap-1 px-2 pb-2 flex-1">
           <button
@@ -111,45 +112,50 @@ function MatchCard({
     )
   }
 
+  const isClickable = isRecordable || isCorrectible
+
   return (
     <div
       style={{ height: MATCH_H, width: COL_W }}
-      className={`relative border rounded-lg overflow-hidden bg-white shadow-sm flex flex-col group ${
-        isByeWin ? 'border-gray-100 opacity-50'
-        : isComplete ? 'border-gray-300'
-        : isRecordable ? 'border-gray-200 hover:border-blue-300 cursor-pointer'
-        : 'border-gray-200'
+      className={`relative border-2 rounded-xl overflow-hidden flex flex-col group transition-all ${
+        isByeWin ? 'border-gray-200 opacity-40 shadow-none bg-gray-50'
+        : isCorrectible ? 'border-gray-300 hover:border-amber-400 hover:shadow-lg cursor-pointer shadow-md bg-white'
+        : isRecordable ? 'border-blue-400 hover:border-blue-500 hover:shadow-lg cursor-pointer shadow-md bg-white'
+        : isComplete ? 'border-gray-300 shadow-md bg-white'
+        : 'border-gray-300 shadow-md bg-white'
       }`}
-      onClick={isRecordable ? onStartPick : undefined}
-      title={isRecordable ? 'Click to record match result' : undefined}
+      onClick={isClickable ? onStartPick : undefined}
+      title={isRecordable ? 'Click to record match result' : isCorrectible ? 'Click to correct this result' : undefined}
     >
       {/* Match number badge */}
       {match.match_number && (
-        <div className="absolute -top-2 left-2 bg-gray-600 text-white text-[9px] font-mono px-1.5 py-0.5 rounded z-10 leading-none">
+        <div className="absolute -top-2.5 left-3 bg-gray-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-full z-10 leading-none tracking-wide">
           M{match.match_number}
         </div>
       )}
 
-      {/* "Record" hint shown on hover for recordable matches */}
+      {/* Action hints on hover */}
       {isRecordable && (
-        <div className="absolute inset-0 bg-blue-50/0 group-hover:bg-blue-50/60 transition-colors pointer-events-none rounded-lg z-0" />
+        <div className="absolute bottom-1 right-2 text-[9px] text-blue-500 font-medium opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          tap to record ▸
+        </div>
       )}
-      {isRecordable && (
-        <div className="absolute bottom-1 right-2 text-[9px] text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-          click to record
+      {isCorrectible && (
+        <div className="absolute bottom-1 right-2 text-[9px] text-amber-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity z-10">
+          tap to correct ▸
         </div>
       )}
 
       {/* Red corner — P1 */}
       <div
-        style={{ height: SLOT_H, borderLeft: '3px solid #ef4444' }}
-        className={`relative z-10 flex items-center gap-1.5 px-2.5 border-b border-gray-100 overflow-hidden ${
-          isP1Winner ? 'bg-green-50' : isByeWin ? 'bg-gray-50' : 'bg-red-50/40'
+        style={{ height: SLOT_H, borderLeft: '4px solid #dc2626' }}
+        className={`relative z-10 flex items-center gap-1.5 px-2.5 border-b border-gray-200 overflow-hidden ${
+          isP1Winner ? 'bg-green-100' : isByeWin ? 'bg-gray-100' : 'bg-red-50'
         }`}
       >
         <SlotContent p={p1} isWinner={isP1Winner} />
         {p1?.seed_position !== null && p1?.seed_position !== undefined && !p1.is_bye && (
-          <span className="text-[9px] text-gray-300 font-mono flex-shrink-0 ml-auto pl-1">
+          <span className="text-[9px] text-gray-400 font-mono flex-shrink-0 ml-auto pl-1">
             #{p1.seed_position}
           </span>
         )}
@@ -157,14 +163,14 @@ function MatchCard({
 
       {/* Blue corner — P2 */}
       <div
-        style={{ height: SLOT_H, borderLeft: '3px solid #3b82f6' }}
+        style={{ height: SLOT_H, borderLeft: '4px solid #2563eb' }}
         className={`relative z-10 flex items-center gap-1.5 px-2.5 overflow-hidden ${
-          isP2Winner ? 'bg-green-50' : isByeWin ? 'bg-gray-50' : 'bg-blue-50/40'
+          isP2Winner ? 'bg-green-100' : isByeWin ? 'bg-gray-100' : 'bg-blue-50'
         }`}
       >
         <SlotContent p={p2} isWinner={isP2Winner} />
         {p2?.seed_position !== null && p2?.seed_position !== undefined && !p2.is_bye && (
-          <span className="text-[9px] text-gray-300 font-mono flex-shrink-0 ml-auto pl-1">
+          <span className="text-[9px] text-gray-400 font-mono flex-shrink-0 ml-auto pl-1">
             #{p2.seed_position}
           </span>
         )}
@@ -198,7 +204,7 @@ function ConnectorSVG({
     const yT = (k - 1) * rightSectionH + rightSectionH / 2
 
     paths.push(
-      <g key={k} stroke="#d1d5db" strokeWidth={1.5} fill="none" strokeLinecap="round">
+      <g key={k} stroke="#6b7280" strokeWidth={2} fill="none" strokeLinecap="round">
         <line x1={0} y1={y1} x2={midX} y2={y1} />
         <line x1={0} y1={y2} x2={midX} y2={y2} />
         <line x1={midX} y1={y1} x2={midX} y2={y2} />
@@ -222,26 +228,56 @@ export default function BracketTree({ matches, participantMap, bracketSize, brac
   const [recording, setRecording] = useState(false)
   const [resultError, setResultError] = useState<string | null>(null)
 
+  interface ConfirmState {
+    matchId: string
+    winnerId: string
+    winnerName: string
+    advancesTo: string
+    isCorrection: boolean
+    previousWinnerName?: string
+  }
+  const [confirmWinner, setConfirmWinner] = useState<ConfirmState | null>(null)
+
   const canRecord = !readOnly && (bracketStatus === 'LOCKED' || bracketStatus === 'IN_PROGRESS')
 
-  async function handlePickWinner(matchId: string, winnerId: string) {
+  // Step 1: player selected in picker → show confirmation modal
+  function handleSelectWinner(matchId: string, winnerId: string) {
+    const winnerName = participantMap[winnerId]?.full_name ?? 'Unknown'
+    const match = matches.find(m => m.id === matchId)
+    const isCorrection = match?.status === 'COMPLETE'
+    const previousWinnerId = match?.winner_id as string | null | undefined
+    const previousWinnerName = previousWinnerId ? (participantMap[previousWinnerId]?.full_name ?? 'previous winner') : undefined
+    let advancesTo = 'Champion 🥇'
+    if (match?.next_match_id) {
+      const nextMatch = matches.find(m => m.id === match.next_match_id)
+      advancesTo = nextMatch?.round_label ?? 'Next Round'
+    }
+    setPickingMatchId(null)
+    setConfirmWinner({ matchId, winnerId, winnerName, advancesTo, isCorrection, previousWinnerName })
+  }
+
+  // Step 2: confirmed → call API
+  async function handleConfirmWinner() {
+    if (!confirmWinner) return
     setRecording(true)
     setResultError(null)
     try {
       const res = await fetch('/api/draw/result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ match_id: matchId, winner_id: winnerId }),
+        body: JSON.stringify({ match_id: confirmWinner.matchId, winner_id: confirmWinner.winnerId }),
       })
       const json = await res.json()
       if (!res.ok) {
         setResultError(json.error ?? 'Failed to record result')
+        setConfirmWinner(null)
       } else {
-        setPickingMatchId(null)
+        setConfirmWinner(null)
         router.refresh()
       }
     } catch {
       setResultError('Network error — please try again.')
+      setConfirmWinner(null)
     } finally {
       setRecording(false)
     }
@@ -267,6 +303,63 @@ export default function BracketTree({ matches, participantMap, bracketSize, brac
   return (
     <div className="overflow-x-auto pb-2">
 
+      {/* ── Confirm winner modal ─────────────────────────────────────────────── */}
+      {confirmWinner && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-full max-w-sm overflow-hidden">
+            {/* Header — green for new result, amber for correction */}
+            <div className={`px-6 py-5 text-center ${confirmWinner.isCorrection ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-green-500 to-emerald-600'}`}>
+              <div className="text-3xl mb-1">{confirmWinner.isCorrection ? '⚠️' : '🏆'}</div>
+              <p className="text-xs font-bold uppercase tracking-widest text-white/90 mb-0.5">
+                {confirmWinner.isCorrection ? 'Correct Result' : 'Confirm Result'}
+              </p>
+            </div>
+
+            {/* Body */}
+            <div className="px-6 py-5 text-center">
+              {confirmWinner.isCorrection && confirmWinner.previousWinnerName && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <p className="text-xs text-amber-700 font-medium">Replacing recorded winner:</p>
+                  <p className="text-sm font-bold text-amber-900 line-through">{confirmWinner.previousWinnerName}</p>
+                </div>
+              )}
+              <p className="text-xl font-bold text-gray-900 leading-tight">{confirmWinner.winnerName}</p>
+              <p className="text-sm text-gray-500 mt-2">
+                {confirmWinner.isCorrection ? 'will be the new winner, advancing to' : 'advances to'}{' '}
+                <span className="font-bold text-blue-600">{confirmWinner.advancesTo}</span>
+              </p>
+              {confirmWinner.isCorrection && (
+                <p className="text-xs text-amber-600 font-medium mt-3 bg-amber-50 rounded-lg px-3 py-2">
+                  The next match slot will be updated automatically.
+                </p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 pb-5 flex gap-3">
+              <button
+                onClick={() => setConfirmWinner(null)}
+                disabled={recording}
+                className="flex-1 px-4 py-2.5 text-sm font-semibold rounded-xl border-2 border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmWinner}
+                disabled={recording}
+                className={`flex-1 px-4 py-2.5 text-sm font-bold rounded-xl text-white transition-colors disabled:opacity-50 shadow-md ${
+                  confirmWinner.isCorrection
+                    ? 'bg-amber-500 hover:bg-amber-600 active:bg-amber-700'
+                    : 'bg-green-600 hover:bg-green-700 active:bg-green-800'
+                }`}
+              >
+                {recording ? 'Saving…' : confirmWinner.isCorrection ? 'Override Result ✓' : 'Confirm ✓'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Error banner */}
       {resultError && (
         <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 flex items-center justify-between">
@@ -288,7 +381,7 @@ export default function BracketTree({ matches, participantMap, bracketSize, brac
         {sortedRounds.map((r, i) => (
           <Fragment key={r}>
             <div style={{ width: COL_W, flexShrink: 0 }} className="text-center">
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
                 {roundMap.get(r)![0].round_label}
               </span>
             </div>
@@ -321,7 +414,7 @@ export default function BracketTree({ matches, participantMap, bracketSize, brac
                         recording={recording}
                         onStartPick={() => { setPickingMatchId(m.id); setResultError(null) }}
                         onCancelPick={() => setPickingMatchId(null)}
-                        onPickWinner={(winnerId) => handlePickWinner(m.id, winnerId)}
+                        onPickWinner={(winnerId) => handleSelectWinner(m.id, winnerId)}
                       />
                     </div>
                   )
@@ -341,21 +434,21 @@ export default function BracketTree({ matches, participantMap, bracketSize, brac
       </div>
 
       {/* Legend */}
-      <div className="mt-6 pt-4 border-t border-gray-100 flex flex-wrap items-center gap-6 text-xs text-gray-400">
+      <div className="mt-6 pt-4 border-t border-gray-200 flex flex-wrap items-center gap-6 text-xs text-gray-500">
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-4 rounded-sm bg-red-100 border-l-2 border-red-400" />
+          <div className="w-3 h-5 rounded-sm bg-red-50 border-l-4 border-red-600" />
           Red corner (P1)
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-4 rounded-sm bg-blue-100 border-l-2 border-blue-400" />
+          <div className="w-3 h-5 rounded-sm bg-blue-50 border-l-4 border-blue-600" />
           Blue corner (P2)
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-green-500 font-medium">✓</span>
+          <span className="text-green-600 font-bold">✓</span>
           Winner advanced
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-3 h-4 rounded-sm bg-gray-100 opacity-50" />
+          <div className="w-3 h-5 rounded-sm bg-gray-100 opacity-50 border border-gray-300" />
           BYE (auto-advance)
         </div>
         {canRecord && (

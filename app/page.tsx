@@ -19,3 +19,5 @@ export default async function RootPage() {
 
   redirect(dest)
 }
+
+Pendi

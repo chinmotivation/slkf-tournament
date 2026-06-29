@@ -35,7 +35,7 @@ export default async function DrawTournamentPage({ params }: Props) {
   if (!tourn) notFound()
   const tournament = tourn as Pick<Tournament, 'id' | 'name' | 'code' | 'year' | 'status'>
 
-  const [bracketsResult, approvedResult] = await Promise.all([
+  const [bracketsResult, approvedStudentsResult, approvedAssocResult] = await Promise.all([
     db
       .from('draw_brackets')
       .select('*')
@@ -50,10 +50,15 @@ export default async function DrawTournamentPage({ params }: Props) {
       .select('id', { count: 'exact', head: true })
       .eq('tournament_id', tournamentId)
       .eq('status', 'APPROVED'),
+    db
+      .from('applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('tournament_id', tournamentId)
+      .in('status', ['SUBMITTED', 'PENDING_VERIFICATION', 'APPROVED']),
   ])
 
   const brackets = (bracketsResult.data ?? []) as DrawBracket[]
-  const approvedCount: number = approvedResult.count ?? 0
+  const approvedCount: number = (approvedStudentsResult.count ?? 0) + (approvedAssocResult.count ?? 0)
 
   const totalAthletes = brackets.reduce((s, b) => s + b.participant_count, 0)
   const lockedCount   = brackets.filter(b => b.status !== 'PREVIEW').length
@@ -87,7 +92,7 @@ export default async function DrawTournamentPage({ params }: Props) {
         {/* Summary strip */}
         <div className="grid grid-cols-4 gap-4">
           <div className="bg-white border border-gray-100 rounded-xl px-5 py-4">
-            <p className="text-xs text-gray-400 mb-1">Approved Students</p>
+            <p className="text-xs text-gray-400 mb-1">Applications / Students</p>
             <p className={`text-2xl font-bold ${approvedCount > 0 ? 'text-green-600' : 'text-gray-400'}`}>{approvedCount}</p>
           </div>
           <div className="bg-white border border-gray-100 rounded-xl px-5 py-4">

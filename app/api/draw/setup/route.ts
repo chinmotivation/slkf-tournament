@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireHeadMaster, isNextResponse } from '@/lib/auth-guard'
+import { z } from 'zod'
+import { zodUuid } from '@/lib/validations/uuid'
 
-// Next power of 2 >= n (minimum 2)
 function bracketSize(n: number): number {
   if (n <= 2) return 2
   let s = 2
@@ -25,15 +27,12 @@ type IndividualEntry = {
   full_name: string | null
   gender: 'MALE' | 'FEMALE' | null
   age_category_code: string | null
-  kata_entry: boolean
-  kata_level: string | null
-  kumite_entry: boolean
-  kumite_weight_class: string | null
+  event: 'KATA' | 'KUMITE' | 'BOTH'
   application_id: string
   applications: { association_id: string; association_name: string | null } | null
 }
 
-type BracketKey = string  // `${age}|${gender}|${event}|${sub}`
+type BracketKey = string
 
 interface BracketSpec {
   age_group_code: string
@@ -50,24 +49,26 @@ interface BracketSpec {
   }>
 }
 
+const schema = z.object({
+  tournament_id: zodUuid('tournament_id must be a valid UUID'),
+})
+
 export async function POST(req: NextRequest) {
+  const auth = await requireHeadMaster()
+  if (isNextResponse(auth)) return auth
+
+  const body = await req.json().catch(() => ({}))
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' }, { status: 400 })
+  }
+  const { tournament_id } = parsed.data
+
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if ((profile as { role: string } | null)?.role !== 'head_master')
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  const body = await req.json().catch(() => ({}))
-  const { tournament_id } = body as { tournament_id?: string }
-  if (!tournament_id) return NextResponse.json({ error: 'tournament_id required' }, { status: 400 })
-
-  // Verify HM owns this tournament (RLS does this automatically via createClient)
+  // RLS (migration 030 + 024) scopes the query to HM's own tournaments automatically.
   const { data: tourn } = await db
     .from('tournaments')
     .select('id, seeding_method')
@@ -77,7 +78,6 @@ export async function POST(req: NextRequest) {
 
   const seedingMode: string = tourn.seeding_method ?? 'RANDOM'
 
-  // ── 1. Collect approved students ─────────────────────────────────────────────
   const { data: studentsData } = await db
     .from('student_applications')
     .select('id, full_name, gender, age_category_code, kata_entry, kata_level, kumite_entry, kumite_weight_class')
@@ -86,7 +86,6 @@ export async function POST(req: NextRequest) {
 
   const students = (studentsData ?? []) as StudentApp[]
 
-  // ── 2. Collect approved association entries ───────────────────────────────────
   const { data: appsData } = await db
     .from('applications')
     .select('id, association_id, association_name')
@@ -101,7 +100,7 @@ export async function POST(req: NextRequest) {
   if (appIds.length > 0) {
     const { data: entriesData } = await db
       .from('individual_entries')
-      .select('id, full_name, gender, age_category_code, kata_entry, kata_level, kumite_entry, kumite_weight_class, application_id')
+      .select('id, full_name, gender, age_category_code, event, application_id')
       .in('application_id', appIds)
       .is('deleted_at', null)
     entries = ((entriesData ?? []) as Omit<IndividualEntry, 'applications'>[]).map(e => ({
@@ -114,7 +113,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No approved participants found for this tournament' }, { status: 400 })
   }
 
-  // ── 3. Build bracket specs ────────────────────────────────────────────────────
   const bracketMap = new Map<BracketKey, BracketSpec>()
 
   function getOrCreate(
@@ -150,15 +148,15 @@ export async function POST(req: NextRequest) {
   for (const e of entries) {
     const gender = e.gender as 'MALE' | 'FEMALE' | null
     if (!gender || !e.age_category_code) continue
-    if (e.kata_entry) {
-      getOrCreate(e.age_category_code, gender, 'KATA', e.kata_level, null).participants.push({
+    if (e.event === 'KATA' || e.event === 'BOTH') {
+      getOrCreate(e.age_category_code, gender, 'KATA', null, null).participants.push({
         full_name: e.full_name, association_id: e.applications?.association_id ?? null,
         association_name: e.applications?.association_name ?? null,
         student_application_id: null, individual_entry_id: e.id,
       })
     }
-    if (e.kumite_entry) {
-      getOrCreate(e.age_category_code, gender, 'KUMITE', null, e.kumite_weight_class).participants.push({
+    if (e.event === 'KUMITE' || e.event === 'BOTH') {
+      getOrCreate(e.age_category_code, gender, 'KUMITE', null, null).participants.push({
         full_name: e.full_name, association_id: e.applications?.association_id ?? null,
         association_name: e.applications?.association_name ?? null,
         student_application_id: null, individual_entry_id: e.id,
@@ -166,7 +164,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 4. Upsert draw_brackets + draw_participants ───────────────────────────────
   let bracketsCreated = 0
   let bracketsUpdated = 0
   let totalParticipants = 0
@@ -176,22 +173,27 @@ export async function POST(req: NextRequest) {
     const bSize = bracketSize(count)
     const byes  = bSize - count
 
-    // Check if bracket already exists
-    const { data: existing } = await db
+    let existingQuery = db
       .from('draw_brackets')
       .select('id, status')
       .eq('tournament_id', tournament_id)
       .eq('age_group_code', spec.age_group_code)
       .eq('gender', spec.gender)
       .eq('event', spec.event)
-      .is(spec.kata_level   ? 'kata_level'          : 'weight_class_label',
-          spec.kata_level ?? spec.weight_class_label)
-      .maybeSingle()
+
+    existingQuery = spec.kata_level != null
+      ? existingQuery.eq('kata_level', spec.kata_level)
+      : existingQuery.is('kata_level', null)
+
+    existingQuery = spec.weight_class_label != null
+      ? existingQuery.eq('weight_class_label', spec.weight_class_label)
+      : existingQuery.is('weight_class_label', null)
+
+    const { data: existing } = await existingQuery.maybeSingle()
 
     let bracketId: string
 
     if (existing) {
-      // Only update if still in PREVIEW (don't touch locked/in-progress brackets)
       if (existing.status !== 'PREVIEW') {
         bracketsUpdated++
         continue
@@ -202,11 +204,10 @@ export async function POST(req: NextRequest) {
         bye_count: byes,
         seeding_mode: seedingMode,
         updated_at: new Date().toISOString(),
-        updated_by: user.id,
+        updated_by: auth.userId,
       }).eq('id', existing.id)
       bracketId = existing.id as string
 
-      // Wipe old participants so we can re-sync
       await db.from('draw_participants').delete().eq('bracket_id', bracketId)
       bracketsUpdated++
     } else {
@@ -222,15 +223,14 @@ export async function POST(req: NextRequest) {
         bracket_size: bSize,
         bye_count: byes,
         status: 'PREVIEW',
-        created_by: user.id,
-        updated_by: user.id,
+        created_by: auth.userId,
+        updated_by: auth.userId,
       }).select('id').single()
       if (!inserted) continue
       bracketId = inserted.id as string
       bracketsCreated++
     }
 
-    // Insert participants
     if (spec.participants.length > 0) {
       await db.from('draw_participants').insert(
         spec.participants.map(p => ({

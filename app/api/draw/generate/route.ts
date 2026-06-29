@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireHeadMaster, isNextResponse } from '@/lib/auth-guard'
+import { z } from 'zod'
+import { zodUuid } from '@/lib/validations/uuid'
 import type { DrawParticipant } from '@/types/database'
+
+// ─── Crypto-secure shuffle ────────────────────────────────────────────────────
+// Math.random() is not appropriate for official competition draws.
+// Fisher-Yates with crypto.getRandomValues() ensures unpredictability.
+
+function cryptoShuffle<T>(arr: T[]): T[] {
+  const result = [...arr]
+  for (let i = result.length - 1; i > 0; i--) {
+    const buf = new Uint32Array(1)
+    crypto.getRandomValues(buf)
+    const j = buf[0] % (i + 1)
+    ;[result[i], result[j]] = [result[j], result[i]]
+  }
+  return result
+}
 
 // ─── Round label ──────────────────────────────────────────────────────────────
 
@@ -8,20 +26,28 @@ function roundLabel(roundNumber: number, totalRounds: number): string {
   if (roundNumber === 1) return 'Final'
   if (roundNumber === 2) return 'Semifinal'
   if (roundNumber === 3) return 'Quarterfinal'
-  return `Round of ${Math.pow(2, roundNumber)}`
+  // For early rounds, label relative to actual bracket depth
+  const participantsInRound = Math.pow(2, roundNumber)
+  if (roundNumber === totalRounds) return `Round of ${participantsInRound}`
+  return `Round of ${participantsInRound}`
 }
 
 // ─── Seeding: Association Separation ─────────────────────────────────────────
 // Distributes athletes so same-association athletes land in opposite bracket
 // halves and can only meet in the Final.
-//
-// Returns an ordered array of length bracketSize where null = bye slot.
+
+function spreadByes(players: DrawParticipant[], size: number): Array<DrawParticipant | null> {
+  const result: Array<DrawParticipant | null> = new Array(size).fill(null)
+  let pIdx = 0
+  for (let i = 0; i < size && pIdx < players.length; i += 2) result[i] = players[pIdx++]
+  for (let i = 1; i < size && pIdx < players.length; i += 2) result[i] = players[pIdx++]
+  return result
+}
 
 function seedWithAssociationSeparation(
   participants: DrawParticipant[],
   bracketSize: number
 ): Array<DrawParticipant | null> {
-  // Group by association (students without an association_id get their own solo group)
   const groupMap = new Map<string, DrawParticipant[]>()
   for (const p of participants) {
     const key = p.association_id ?? `__s_${p.id}`
@@ -29,10 +55,8 @@ function seedWithAssociationSeparation(
     groupMap.get(key)!.push(p)
   }
 
-  // Shuffle within each group, then sort groups largest-first so big clubs get
-  // separated before small ones.
   const groups = [...groupMap.values()]
-    .map(g => g.sort(() => Math.random() - 0.5))
+    .map(g => cryptoShuffle(g))
     .sort((a, b) => b.length - a.length)
 
   const halfSize = bracketSize / 2
@@ -41,7 +65,6 @@ function seedWithAssociationSeparation(
   const topCount = new Map<string, number>()
   const botCount = new Map<string, number>()
 
-  // Round-robin across groups so we interleave before distributing to halves
   const interleaved: DrawParticipant[] = []
   const maxLen = Math.max(...groups.map(g => g.length))
   for (let i = 0; i < maxLen; i++) {
@@ -50,75 +73,82 @@ function seedWithAssociationSeparation(
     }
   }
 
-  // Assign each athlete to the half that currently has fewer of their association
   for (const p of interleaved) {
     const key = p.association_id ?? `__s_${p.id}`
     const tc = topCount.get(key) ?? 0
     const bc = botCount.get(key) ?? 0
 
     let goTop: boolean
-    if (topHalf.length >= halfSize)      goTop = false
-    else if (bottomHalf.length >= halfSize) goTop = true
-    else if (tc < bc)                    goTop = true
-    else if (bc < tc)                    goTop = false
-    else                                 goTop = topHalf.length <= bottomHalf.length
+    if (topHalf.length >= halfSize)         goTop = false
+    else if (bottomHalf.length >= halfSize)  goTop = true
+    else if (tc < bc)                        goTop = true
+    else if (bc < tc)                        goTop = false
+    else                                     goTop = topHalf.length <= bottomHalf.length
 
     if (goTop) { topHalf.push(p); topCount.set(key, tc + 1) }
-    else       { bottomHalf.push(p); botCount.set(key, bc + 1) }
+    else        { bottomHalf.push(p); botCount.set(key, bc + 1) }
   }
 
-  // Shuffle within each half for randomness within the constraint
-  topHalf.sort(() => Math.random() - 0.5)
-  bottomHalf.sort(() => Math.random() - 0.5)
-
-  // Pad with nulls (byes) at the end of each half to reach bracketSize
-  const result: Array<DrawParticipant | null> = [
-    ...topHalf,
-    ...Array<null>(halfSize - topHalf.length).fill(null),
-    ...bottomHalf,
-    ...Array<null>(halfSize - bottomHalf.length).fill(null),
+  return [
+    ...spreadByes(cryptoShuffle(topHalf), halfSize),
+    ...spreadByes(cryptoShuffle(bottomHalf), halfSize),
   ]
-
-  return result
 }
 
 function seedRandom(
   participants: DrawParticipant[],
   bracketSize: number
 ): Array<DrawParticipant | null> {
-  const shuffled = [...participants].sort(() => Math.random() - 0.5)
-  return [
-    ...shuffled,
-    ...Array<null>(bracketSize - shuffled.length).fill(null),
-  ]
+  return spreadByes(cryptoShuffle(participants), bracketSize)
 }
+
+// ─── Input schema ─────────────────────────────────────────────────────────────
+
+const schema = z.object({
+  bracket_id: zodUuid('bracket_id must be a valid UUID'),
+})
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // SEC-2: use requireHeadMaster so deactivated accounts are blocked
+  const auth = await requireHeadMaster()
+  if (isNextResponse(auth)) return auth
+
+  // BUG-4: validate bracket_id format before hitting the DB
+  const body = await req.json().catch(() => ({}))
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid request' }, { status: 400 })
+  }
+  const { bracket_id } = parsed.data
+
   const supabase = await createClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any
 
-  // Auth
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if ((profile as { role: string } | null)?.role !== 'head_master')
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  // Input
-  const body = await req.json().catch(() => ({}))
-  const { bracket_id } = body as { bracket_id?: string }
-  if (!bracket_id) return NextResponse.json({ error: 'bracket_id required' }, { status: 400 })
-
-  // Load bracket
+  // Load bracket and verify HM owns the parent tournament (SEC-2)
   const { data: bracketRow } = await db
-    .from('draw_brackets').select('*').eq('id', bracket_id).single()
+    .from('draw_brackets')
+    .select('id, status, bracket_size, seeding_mode, tournament_id')
+    .eq('id', bracket_id)
+    .single()
+
   if (!bracketRow)
     return NextResponse.json({ error: 'Bracket not found' }, { status: 404 })
+
+  // RLS on draw_brackets (migration 030) already enforces ownership.
+  // Belt-and-suspenders: explicit application-layer ownership check.
+  const { data: tournament } = await db
+    .from('tournaments')
+    .select('id')
+    .eq('id', bracketRow.tournament_id)
+    .eq('owner_id', auth.userId)
+    .single()
+
+  if (!tournament)
+    return NextResponse.json({ error: 'Tournament not found or access denied' }, { status: 403 })
+
   if (bracketRow.status !== 'PREVIEW')
     return NextResponse.json({ error: 'Only PREVIEW brackets can be (re)generated' }, { status: 409 })
 
@@ -126,7 +156,7 @@ export async function POST(req: NextRequest) {
   const totalRounds = Math.log2(bracketSize)
   const seedingMode: string = bracketRow.seeding_mode
 
-  // Load real participants (no byes)
+  // Load real participants
   const { data: participantsData } = await db
     .from('draw_participants')
     .select('*')
@@ -138,24 +168,23 @@ export async function POST(req: NextRequest) {
   if (participants.length < 2)
     return NextResponse.json({ error: 'Need at least 2 athletes to generate a draw' }, { status: 400 })
 
-  // ── Compute seeded slots (length = bracketSize) ───────────────────────────
+  // Compute seeded slots
   const slots =
     seedingMode === 'RANDOM'
       ? seedRandom(participants, bracketSize)
       : seedWithAssociationSeparation(participants, bracketSize)
 
-  // Which seed positions are byes?
   const byeSeedPositions: number[] = []
   for (let i = 0; i < slots.length; i++) {
     if (slots[i] === null) byeSeedPositions.push(i + 1)
   }
 
-  // ── Wipe previous generation ──────────────────────────────────────────────
+  // Wipe previous generation
   await db.from('bracket_matches').delete().eq('bracket_id', bracket_id)
   await db.from('draw_participants').delete()
     .eq('bracket_id', bracket_id).eq('is_bye', true)
 
-  // ── Insert bye participants ───────────────────────────────────────────────
+  // Insert bye participants
   const byeInserts = byeSeedPositions.map(seedPos => ({
     bracket_id,
     full_name: null,
@@ -177,28 +206,29 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Update seed_position on real participants ─────────────────────────────
+  // BUG-6: batch all seed_position updates in parallel instead of N serial calls
   const seedToParticipantId = new Map<number, string>()
+  const seedUpdatePromises: Promise<unknown>[] = []
   for (let i = 0; i < slots.length; i++) {
     const p = slots[i]
     if (p !== null) {
       const seedPos = i + 1
       seedToParticipantId.set(seedPos, p.id)
-      await db.from('draw_participants')
-        .update({ seed_position: seedPos }).eq('id', p.id)
+      seedUpdatePromises.push(
+        db.from('draw_participants')
+          .update({ seed_position: seedPos })
+          .eq('id', p.id)
+      )
     }
   }
+  await Promise.all(seedUpdatePromises)
 
-  // Combined map: seedPos → any participant id (real or bye)
   const seedToId = new Map<number, string>([
     ...seedToParticipantId,
     ...byeSeedToId,
   ])
 
-  // ── Build bracket_matches (all rounds) ───────────────────────────────────
-  // round_number: 1 = Final, totalRounds = first round of play
-  // matches per round: 2^(r-1)   →  round 1: 1 match, round 2: 2, …
-
+  // Build bracket_matches for all rounds
   type MatchInsert = {
     bracket_id: string
     round_number: number
@@ -208,7 +238,7 @@ export async function POST(req: NextRequest) {
     participant2_id: string | null
     winner_id: string | null
     status: string
-    next_match_id: null        // filled in second pass
+    next_match_id: null
     next_match_slot: null
   }
 
@@ -253,37 +283,41 @@ export async function POST(req: NextRequest) {
   const { data: insertedMatches } = await db
     .from('bracket_matches').insert(matchInserts).select('id, round_number, position')
 
-  // ── Build lookup: "round.position" → match id ────────────────────────────
   const matchKey = (r: number, p: number) => `${r}.${p}`
   const matchMap = new Map<string, string>()
   for (const m of (insertedMatches ?? [])) {
     matchMap.set(matchKey(m.round_number, m.position), m.id as string)
   }
 
-  // ── Second pass: wire next_match_id ──────────────────────────────────────
+  // BUG-6: second pass — wire next_match_id in parallel
+  const wiringUpdates: Promise<unknown>[] = []
   for (let r = 2; r <= totalRounds; r++) {
     const matchesInRound = Math.pow(2, r - 1)
     for (let pos = 1; pos <= matchesInRound; pos++) {
-      const thisId   = matchMap.get(matchKey(r, pos))
-      const nextPos  = Math.ceil(pos / 2)
-      const nextId   = matchMap.get(matchKey(r - 1, nextPos))
+      const thisId  = matchMap.get(matchKey(r, pos))
+      const nextPos = Math.ceil(pos / 2)
+      const nextId  = matchMap.get(matchKey(r - 1, nextPos))
       const nextSlot = pos % 2 === 1 ? 1 : 2
 
       if (thisId && nextId) {
-        await db.from('bracket_matches')
-          .update({ next_match_id: nextId, next_match_slot: nextSlot })
-          .eq('id', thisId)
+        wiringUpdates.push(
+          db.from('bracket_matches')
+            .update({ next_match_id: nextId, next_match_slot: nextSlot })
+            .eq('id', thisId)
+        )
       }
     }
   }
+  await Promise.all(wiringUpdates)
 
-  // ── Third pass: advance BYE_WIN winners into next round ──────────────────
+  // BUG-6: third pass — advance BYE_WIN winners in parallel
+  const byeAdvanceUpdates: Promise<unknown>[] = []
   for (const m of (insertedMatches ?? [])) {
     const inserted = matchInserts.find(
       mi => mi.round_number === m.round_number && mi.position === m.position
     )
     if (inserted?.status !== 'BYE_WIN' || !inserted.winner_id) continue
-    if (m.round_number <= 1) continue  // Final has no next match
+    if (m.round_number <= 1) continue
 
     const nextPos  = Math.ceil(m.position / 2)
     const nextSlot = m.position % 2 === 1 ? 1 : 2
@@ -291,12 +325,14 @@ export async function POST(req: NextRequest) {
     if (!nextId) continue
 
     const field = nextSlot === 1 ? 'participant1_id' : 'participant2_id'
-    await db.from('bracket_matches')
-      .update({ [field]: inserted.winner_id })
-      .eq('id', nextId)
+    byeAdvanceUpdates.push(
+      db.from('bracket_matches')
+        .update({ [field]: inserted.winner_id })
+        .eq('id', nextId)
+    )
   }
+  await Promise.all(byeAdvanceUpdates)
 
-  // ── Mark bracket as generated ─────────────────────────────────────────────
   await db.from('draw_brackets')
     .update({ generated_at: new Date().toISOString(), updated_at: new Date().toISOString() })
     .eq('id', bracket_id)
